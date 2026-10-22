@@ -1,0 +1,14 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - lib/firebase_options.dart
+  errors:
+    deprecated_member_use: ignore
+
+linter:
+  rules:
+    prefer_single_quotes: true

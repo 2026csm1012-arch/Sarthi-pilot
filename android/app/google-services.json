@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "751583488405",
+    "project_id": "sarthi-app-a981e",
+    "storage_bucket": "sarthi-app-a981e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:751583488405:android:2fbd72253bb945fe772e9c",
+        "android_client_info": {
+          "package_name": "com.example.sarthi_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "751583488405-h7d4cu74n307dsf875plalpdj11emj4q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1S1aCSDDADwy0PItXSpdW6nSsnGkzvxA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "751583488405-h7d4cu74n307dsf875plalpdj11emj4q.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "751583488405-3dflg037lch6v2j9320uepqm7qhf72cp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.sarthiApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:751583488405:android:73aab87980eb087f772e9c",
+        "android_client_info": {
+          "package_name": "com.example.sarthi_pilot"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "751583488405-h7d4cu74n307dsf875plalpdj11emj4q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1S1aCSDDADwy0PItXSpdW6nSsnGkzvxA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "751583488405-h7d4cu74n307dsf875plalpdj11emj4q.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "751583488405-3dflg037lch6v2j9320uepqm7qhf72cp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.sarthiApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
