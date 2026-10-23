@@ -110,10 +110,21 @@ class DriverController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Extracts ticket code from potential QR contents (plain, JSON, or URL).
+  String _parseTicketCode(String raw) {
+    final trimmed = raw.trim();
+    final regExp = RegExp(r'TKT-\d+', caseSensitive: false);
+    final match = regExp.firstMatch(trimmed);
+    if (match != null) {
+      return match.group(0)!.toUpperCase();
+    }
+    return trimmed.toUpperCase();
+  }
+
   /// Verifies a ticket code against the manifest.
-  void verifyTicket(String code) {
-    final cleanCode = code.trim().toUpperCase();
-    if (cleanCode.isEmpty) return;
+  bool verifyTicket(String code) {
+    final cleanCode = _parseTicketCode(code);
+    if (cleanCode.isEmpty) return false;
 
     final index = _tickets.indexWhere((t) => t.id == cleanCode);
 
@@ -123,15 +134,19 @@ class DriverController extends ChangeNotifier {
         ticket.status = 'Used (Onboarded)';
         _scanResultType = 'success';
         _scanResultText = '✓ Ticket ${ticket.id} Verified Successfully! Passenger checked in.';
+        notifyListeners();
+        return true;
       } else {
         _scanResultType = 'warning';
         _scanResultText = '⚠ Ticket ${ticket.id} was already used!';
+        notifyListeners();
+        return false;
       }
     } else {
       _scanResultType = 'error';
-      _scanResultText = '✕ Invalid Ticket ID. Please check again.';
+      _scanResultText = '✕ Invalid Ticket ID ($cleanCode). Please check again.';
+      notifyListeners();
+      return false;
     }
-
-    notifyListeners();
   }
 }

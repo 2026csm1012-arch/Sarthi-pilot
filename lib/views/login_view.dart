@@ -63,9 +63,7 @@ class _LoginViewState extends State<LoginView> {
 
     if (user != null && mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => DriverView(driverUser: user),
-        ),
+        MaterialPageRoute<void>(builder: (_) => DriverView(driverUser: user)),
       );
     }
   }
@@ -77,15 +75,23 @@ class _LoginViewState extends State<LoginView> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+        child: CustomScrollView(
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 24,
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                   // App Brand Icon
                   Center(
                     child: Container(
@@ -138,9 +144,9 @@ class _LoginViewState extends State<LoginView> {
 
                   const Center(
                     child: Text(
-                      'IIT Ropar Transit • Firebase Driver Authentication',
+                      'IIT Ropar Transit',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 16,
                         color: Color(0xFF71717A),
                         fontWeight: FontWeight.w500,
                       ),
@@ -152,7 +158,10 @@ class _LoginViewState extends State<LoginView> {
                   // Error Banner if present
                   if (errorMessage != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(12),
@@ -160,7 +169,11 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline, size: 18, color: Color(0xFFDC2626)),
+                          const Icon(
+                            Icons.error_outline,
+                            size: 18,
+                            color: Color(0xFFDC2626),
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -191,14 +204,27 @@ class _LoginViewState extends State<LoginView> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF18181B)),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF18181B),
+                    ),
                     decoration: InputDecoration(
                       hintText: 'e.g. driver@iitrpr.ac.in',
-                      hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFA1A1AA)),
-                      prefixIcon: const Icon(Icons.mail_outline, size: 20, color: Color(0xFF71717A)),
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFFA1A1AA),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.mail_outline,
+                        size: 20,
+                        color: Color(0xFF71717A),
+                      ),
                       filled: true,
                       fillColor: const Color(0xFFFAFAFA),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: Color(0xFFE4E4E7)),
@@ -209,7 +235,10 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF059669), width: 1.5),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF059669),
+                          width: 1.5,
+                        ),
                       ),
                     ),
                     validator: _authController.validateEmail,
@@ -230,14 +259,26 @@ class _LoginViewState extends State<LoginView> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF18181B)),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF18181B),
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Enter your password (min 6 chars)',
-                      hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFA1A1AA)),
-                      prefixIcon: const Icon(Icons.lock_outline, size: 20, color: Color(0xFF71717A)),
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFFA1A1AA),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.lock_outline,
+                        size: 20,
+                        color: Color(0xFF71717A),
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                           size: 20,
                           color: const Color(0xFF71717A),
                         ),
@@ -247,7 +288,10 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       filled: true,
                       fillColor: const Color(0xFFFAFAFA),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: Color(0xFFE4E4E7)),
@@ -258,7 +302,10 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF059669), width: 1.5),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF059669),
+                          width: 1.5,
+                        ),
                       ),
                     ),
                     validator: _authController.validatePassword,
@@ -273,7 +320,10 @@ class _LoginViewState extends State<LoginView> {
                       onTap: _fillDemoCredentials,
                       borderRadius: BorderRadius.circular(6),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF4F4F5),
                           borderRadius: BorderRadius.circular(6),
@@ -282,7 +332,11 @@ class _LoginViewState extends State<LoginView> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.bolt, size: 14, color: Color(0xFF059669)),
+                            Icon(
+                              Icons.bolt,
+                              size: 14,
+                              color: Color(0xFF059669),
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'Auto-fill demo credentials',
@@ -304,7 +358,9 @@ class _LoginViewState extends State<LoginView> {
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: _authController.isLoading ? null : _handleSubmit,
+                      onPressed: _authController.isLoading
+                          ? null
+                          : _handleSubmit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF059669),
                         foregroundColor: Colors.white,
@@ -323,7 +379,7 @@ class _LoginViewState extends State<LoginView> {
                               ),
                             )
                           : Text(
-                              _isRegistering ? 'Register as Driver' : 'Sign In with Firebase',
+                              _isRegistering ? 'Register' : 'Sign In',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -367,23 +423,33 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.shield_outlined, size: 16, color: Color(0xFFA1A1AA)),
+                        Icon(
+                          Icons.shield_outlined,
+                          size: 16,
+                          color: Color(0xFFA1A1AA),
+                        ),
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Secured with Firebase Authentication. Operator role policies apply.',
-                            style: TextStyle(fontSize: 10, color: Color(0xFF71717A)),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF71717A),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      ],
+    ),
+  ),
+);
   }
 }

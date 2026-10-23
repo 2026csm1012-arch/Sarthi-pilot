@@ -1,7 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:sarthi_pilot/firebase_options.dart';
-import 'package:sarthi_pilot/views/login_view.dart';
+import 'package:sarthi_pilot/views/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +31,7 @@ class SarthiPilotApp extends StatelessWidget {
           primary: const Color(0xFF059669),
         ),
       ),
-      home: const LoginView(),
+      home: const SplashScreen(),
     );
   }
 }

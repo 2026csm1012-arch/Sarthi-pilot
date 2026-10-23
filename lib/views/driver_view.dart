@@ -4,6 +4,7 @@ import 'package:sarthi_pilot/controllers/driver_controller.dart';
 import 'package:sarthi_pilot/models/driver_user.dart';
 import 'package:sarthi_pilot/models/ride_request.dart';
 import 'package:sarthi_pilot/views/login_view.dart';
+import 'package:sarthi_pilot/views/qr_scanner_view.dart';
 
 /// Driver dashboard view in MVC architecture.
 class DriverView extends StatefulWidget {
@@ -82,6 +83,23 @@ class _DriverViewState extends State<DriverView> {
       _showToast('Passenger onboarded!');
     }
     _ticketInputController.clear();
+  }
+
+  void _openCameraScanner() {
+    Navigator.of(context).push(
+      MaterialPageRoute<String>(
+        builder: (_) => QrScannerView(
+          onScanned: (code) async {
+            final valid = _controller.verifyTicket(code);
+            if (valid) {
+              _showToast('Passenger onboarded with ticket $code!');
+            }
+            return valid;
+          },
+          continuous: true,
+        ),
+      ),
+    );
   }
 
   @override
@@ -493,7 +511,7 @@ class _DriverViewState extends State<DriverView> {
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.qr_code_2,
+                  Icons.qr_code_scanner,
                   size: 32,
                   color: Color(0xFF059669),
                 ),
@@ -504,7 +522,7 @@ class _DriverViewState extends State<DriverView> {
               const Text(
                 'Scan Student Ticket',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF18181B),
                 ),
@@ -519,6 +537,55 @@ class _DriverViewState extends State<DriverView> {
               ),
 
               const SizedBox(height: 16),
+
+              // Camera QR Scanner Trigger
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _openCameraScanner,
+                  icon: const Icon(Icons.qr_code_scanner, size: 20),
+                  label: const Text(
+                    'Open Camera QR Scanner',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF059669),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Divider between QR Camera and Manual entry
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: Color(0xFFE4E4E7))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      'OR ENTER TICKET ID',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider(color: Color(0xFFE4E4E7))),
+                ],
+              ),
+
+              const SizedBox(height: 14),
 
               // Ticket ID input field
               TextField(
@@ -569,18 +636,17 @@ class _DriverViewState extends State<DriverView> {
                 ],
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
               // Verify button
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: OutlinedButton(
                   onPressed: () => _onVerifyTicket(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF059669),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF059669),
+                    side: const BorderSide(color: Color(0xFF059669)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

@@ -9,11 +9,11 @@ void main() {
     // Verify Login Screen Elements
     expect(find.text('SARTHI'), findsOneWidget);
     expect(find.text('PILOT'), findsOneWidget);
-    expect(find.text('Sign In with Firebase'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Auto-fill demo credentials'), findsOneWidget);
 
     // Try signing in with empty fields -> shows validation errors
-    await tester.tap(find.text('Sign In with Firebase'));
+    await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
     expect(find.text('Please enter your email'), findsOneWidget);
 
@@ -23,7 +23,7 @@ void main() {
     expect(find.text('driver@iitrpr.ac.in'), findsOneWidget);
 
     // Sign In
-    await tester.tap(find.text('Sign In with Firebase'));
+    await tester.tap(find.text('Sign In'));
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
@@ -43,7 +43,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Returned to Login Screen
-    expect(find.text('Sign In with Firebase'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
   });
 
   testWidgets('City Bus Scanner validates tickets accurately in DriverScreen', (WidgetTester tester) async {
@@ -53,7 +53,7 @@ void main() {
     // Quick login
     await tester.tap(find.text('Auto-fill demo credentials'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign In with Firebase'));
+    await tester.tap(find.text('Sign In'));
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
@@ -62,6 +62,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Scan Student Ticket'), findsOneWidget);
+    expect(find.text('Open Camera QR Scanner'), findsOneWidget);
     expect(find.text('Ready to scan incoming passengers...'), findsOneWidget);
 
     // Test valid ticket TKT-8841 using quick chip
@@ -79,4 +80,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Invalid Ticket ID'), findsOneWidget);
   });
+
+  testWidgets('SplashScreen displays branding elements properly', (WidgetTester tester) async {
+    await tester.pumpWidget(const SarthiPilotApp());
+
+    // Initially on splash screen before settling duration
+    expect(find.text('SARTHI'), findsOneWidget);
+    expect(find.text('Your campus. One easy ride.'), findsOneWidget);
+    expect(find.text('EV Carts • Campus Shuttles'), findsOneWidget);
+    expect(find.text('IIT ROPAR TRANSIT NETWORK'), findsOneWidget);
+
+    // Let splash finish and navigate to login
+    await tester.pumpAndSettle();
+    expect(find.text('Sign In'), findsOneWidget);
+  });
 }
+
