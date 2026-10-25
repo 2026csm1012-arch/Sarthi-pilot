@@ -58,9 +58,9 @@ class _DriverViewState extends State<DriverView> {
     );
   }
 
-  void _onAcceptRequest(int id) {
+  void _onAcceptRequest(dynamic id) {
     _controller.acceptRequest(id);
-    _showToast('Ride accepted! Heading to pickup zone.');
+    _showToast('Ride accepted! GPS broadcast started.');
   }
 
   void _onAddTestRequest() {
@@ -273,6 +273,12 @@ class _DriverViewState extends State<DriverView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Active in-transit ride banner (if driver accepted a ride)
+        _buildActiveRideCard(),
+
+        // Live GPS Telemetry card
+        _buildTelemetryCard(),
+
         // Assigned Vehicle Section
         const Text(
           'Assigned Vehicle',
@@ -489,6 +495,175 @@ class _DriverViewState extends State<DriverView> {
     );
   }
 
+  Widget _buildActiveRideCard() {
+    final ride = _controller.activeRide;
+    if (ride == null) return const SizedBox.shrink();
+
+    String actionLabel = 'Mark Arrived at Pickup';
+    IconData actionIcon = Icons.location_on_rounded;
+    Color buttonColor = const Color(0xFF2563EB);
+
+    if (ride.status == 'arriving') {
+      actionLabel = 'Start Trip (Passenger Onboard)';
+      actionIcon = Icons.play_arrow_rounded;
+      buttonColor = const Color(0xFF059669);
+    } else if (ride.status == 'in_progress') {
+      actionLabel = 'Complete Ride (Arrived at Drop)';
+      actionIcon = Icons.check_circle_rounded;
+      buttonColor = const Color(0xFF16A34A);
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        border: Border.all(color: const Color(0xFF93C5FD)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1D4ED8),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'ACTIVE TRIP · ${ride.status.toUpperCase()}',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 16, color: Color(0xFF64748B)),
+                onPressed: () {
+                  _controller.cancelActiveRide();
+                  _showToast('Active ride cleared.');
+                },
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Trip: ${ride.pickup} ➔ ${ride.drop}',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Passenger: ${ride.userName} (${ride.id})',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                _controller.advanceRideStatus();
+                _showToast('Ride status updated!');
+              },
+              icon: Icon(actionIcon, size: 18),
+              label: Text(actionLabel),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: buttonColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTelemetryCard() {
+    final isLive = _controller.isBroadcasting;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isLive ? const Color(0xFFF0FDF4) : const Color(0xFFFAFAFA),
+        border: Border.all(
+          color: isLive ? const Color(0xFF86EFAC) : const Color(0xFFE4E4E7),
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: isLive ? const Color(0xFF16A34A) : const Color(0xFFA1A1AA),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isLive ? 'GPS TELEMETRY: ACTIVE' : 'GPS TELEMETRY: STANDBY',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                      color: isLive ? const Color(0xFF15803D) : const Color(0xFF71717A),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                'Battery: ${_controller.battery}%',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF52525B)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Current Zone: ${_controller.currentWaypointName}',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF18181B)),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Coordinates: ${_controller.latitude.toStringAsFixed(4)}° N, ${_controller.longitude.toStringAsFixed(4)}° E · Bearing: ${_controller.heading.toInt()}°',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF71717A)),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                _controller.toggleLocationBroadcast();
+                _showToast(isLive ? 'Location broadcasting paused' : 'Live location broadcast to Sarthi Map started!');
+              },
+              icon: Icon(isLive ? Icons.pause_circle_outline : Icons.radar_rounded, size: 18),
+              label: Text(isLive ? 'Pause Live Location' : 'Broadcast Location to Sarthi Map'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isLive ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ================= 2. CITY BUS SCANNER PANEL =================
   Widget _buildBusPanel() {
     return Column(
@@ -668,6 +843,110 @@ class _DriverViewState extends State<DriverView> {
 
         // Result status box
         _buildScanResultBox(),
+
+        const SizedBox(height: 20),
+
+        // Passenger Manifest Section
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Boarded Passenger Manifest',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF52525B),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD1FAE5),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${_controller.onboardedCount} / ${_controller.totalSeats} Boarded',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF047857),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        if (_controller.tickets.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(14),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAFAFA),
+              border: Border.all(color: const Color(0xFFE4E4E7)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Center(
+              child: Text(
+                'No passengers onboard yet',
+                style: TextStyle(fontSize: 12, color: Color(0xFFA1A1AA)),
+              ),
+            ),
+          )
+        else
+          ..._controller.tickets.map((t) => Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAFAFA),
+              border: Border.all(color: const Color(0xFFE4E4E7)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t.id,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF18181B),
+                        ),
+                      ),
+                      Text(
+                        '${t.route} · ${t.busNo}',
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF71717A)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: t.status == 'Valid'
+                        ? const Color(0xFFFEF3C7)
+                        : const Color(0xFFD1FAE5),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    t.status,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: t.status == 'Valid'
+                          ? const Color(0xFF92400E)
+                          : const Color(0xFF065F46),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
       ],
     );
   }
