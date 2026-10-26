@@ -68,12 +68,8 @@ class _DriverViewState extends State<DriverView> {
   }
 
   void _onAcceptRequest(dynamic id) {
-    if (!_controller.isOnline) {
-      _showToast('Please go ONLINE first to accept rides!');
-      return;
-    }
     _controller.acceptRequest(id);
-    _showToast('Ride accepted! GPS broadcast started.');
+    _showToast('Ride accepted! Vehicle is ONLINE & GPS broadcast started.');
   }
 
   void _onAddTestRequest() {
@@ -359,20 +355,45 @@ class _DriverViewState extends State<DriverView> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: _controller.selectedCart,
+              value: _controller.availableCarts.any((c) => c.id == _controller.selectedCart)
+                  ? _controller.selectedCart
+                  : (_controller.availableCarts.isNotEmpty
+                      ? _controller.availableCarts.first.id
+                      : _controller.selectedCart),
               isExpanded: true,
               icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Color(0xFF71717A)),
               style: const TextStyle(fontSize: 12, color: Color(0xFF18181B)),
-              items: const [
-                DropdownMenuItem(
-                  value: 'cart-1',
-                  child: Text('Cart #1 (Satlej Loop)'),
-                ),
-                DropdownMenuItem(
-                  value: 'cart-2',
-                  child: Text('Cart #2 (Hostel Shuttle)'),
-                ),
-              ],
+              items: _controller.availableCarts.isEmpty
+                  ? [
+                      DropdownMenuItem<String>(
+                        value: _controller.selectedCart,
+                        child: Text(_controller.selectedCartName),
+                      ),
+                    ]
+                  : _controller.availableCarts.map((cart) {
+                      return DropdownMenuItem<String>(
+                        value: cart.id,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: cart.isOnline
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFA1A1AA),
+                              ),
+                            ),
+                            Text(
+                              cart.name,
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
               onChanged: (val) {
                 if (val != null) _controller.setSelectedCart(val);
               },
@@ -647,6 +668,8 @@ class _DriverViewState extends State<DriverView> {
 
   Widget _buildTelemetryCard() {
     final isLive = _controller.isBroadcasting;
+    final hasRealGps = _controller.hasRealGpsFix;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(14),
@@ -696,28 +719,45 @@ class _DriverViewState extends State<DriverView> {
             'Current Zone: ${_controller.currentWaypointName}',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF18181B)),
           ),
+          const SizedBox(height: 3),
+          Text(
+            'Coordinates: ${_controller.latitude.toStringAsFixed(6)}° N, ${_controller.longitude.toStringAsFixed(6)}° E',
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF3F3F46)),
+          ),
           const SizedBox(height: 2),
           Text(
-            'Coordinates: ${_controller.latitude.toStringAsFixed(4)}° N, ${_controller.longitude.toStringAsFixed(4)}° E · Bearing: ${_controller.heading.toInt()}°',
-            style: const TextStyle(fontSize: 11, color: Color(0xFF71717A)),
+            'Source: ${hasRealGps ? 'Phone GPS Sensor (Live Hardware)' : 'Initializing GPS...'} · Bearing: ${_controller.heading.toInt()}°',
+            style: const TextStyle(fontSize: 10, color: Color(0xFF71717A)),
           ),
-          const SizedBox(height: 12),
-          SizedBox(
+          const SizedBox(height: 10),
+          Container(
             width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                _controller.toggleLocationBroadcast();
-                _showToast(isLive ? 'Location broadcasting paused' : 'Live location broadcast to Sarthi Map started!');
-              },
-              icon: Icon(isLive ? Icons.pause_circle_outline : Icons.radar_rounded, size: 18),
-              label: Text(isLive ? 'Pause Live Location' : 'Broadcast Location to Sarthi Map'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isLive ? const Color(0xFFDC2626) : const Color(0xFF059669),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isLive ? const Color(0xFFDCFCE7) : const Color(0xFFF4F4F5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isLive ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                  size: 14,
+                  color: isLive ? const Color(0xFF16A34A) : const Color(0xFF71717A),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    isLive
+                        ? 'Broadcasting live 6-digit coordinates to "locations"'
+                        : 'Offline · Toggle online duty button above to broadcast',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: isLive ? const Color(0xFF15803D) : const Color(0xFF71717A),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

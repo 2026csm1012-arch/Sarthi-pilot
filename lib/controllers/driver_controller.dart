@@ -2,16 +2,26 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:sarthi_pilot/models/bus_ticket.dart';
 import 'package:sarthi_pilot/models/ride_request.dart';
+import 'package:sarthi_pilot/models/vehicle_cart.dart';
+import 'package:sarthi_pilot/services/device_location_service.dart';
+import 'package:sarthi_pilot/services/pilot_firebase_service.dart';
 
 /// Controller handling driver dashboard operations, dispatch queue, live GPS telemetry,
 /// and ticket validation (MVC architecture).
 class DriverController extends ChangeNotifier {
-  DriverController() {
+  DriverController({
+    PilotFirebaseService? firebaseService,
+    DeviceLocationService? locationService,
+  })  : _firebaseService = firebaseService ?? PilotFirebaseService(),
+        _locationService = locationService ?? DeviceLocationService() {
     _initData();
   }
 
-  // Driver / Vehicle online duty status
-  bool _isOnline = true;
+  final PilotFirebaseService _firebaseService;
+  final DeviceLocationService _locationService;
+
+  // Driver / Vehicle online duty status (defaults to offline until driver turns on duty)
+  bool _isOnline = false;
   bool get isOnline => _isOnline;
 
   String get vehicleStatusText =>
@@ -24,6 +34,13 @@ class DriverController extends ChangeNotifier {
   // Selected cart in EV Cart mode
   String _selectedCart = 'cart-1';
   String get selectedCart => _selectedCart;
+
+  // Available carts fetched dynamically from Firebase database
+  List<VehicleCart> _availableCarts = [];
+  List<VehicleCart> get availableCarts => List.unmodifiable(_availableCarts);
+
+  StreamSubscription<List<VehicleCart>>? _cartsSub;
+  StreamSubscription<List<RideRequest>>? _ridesSub;
 
   // Capacity status: 'Empty', 'Filling', 'Full'
   String _occupancy = 'Empty';
@@ -47,36 +64,47 @@ class DriverController extends ChangeNotifier {
   RideRequest? _activeRide;
   RideRequest? get activeRide => _activeRide;
 
-  // Live GPS Telemetry state
+  // Live GPS Telemetry state with 6-digit decimal precision
   bool _isBroadcasting = false;
   bool get isBroadcasting => _isBroadcasting;
 
-  double _latitude = 30.9686;
+  // Default campus starting coordinates (6 decimal precision: ~0.1m accuracy)
+  double _latitude = 30.969205;
   double get latitude => _latitude;
 
-  double _longitude = 76.4685;
+  double _longitude = 76.468457;
   double get longitude => _longitude;
 
   double _heading = 45.0;
   double get heading => _heading;
 
-  int _battery = 94;
+  int _battery = 95;
   int get battery => _battery;
 
   String _currentWaypointName = 'Satluj Hostel';
   String get currentWaypointName => _currentWaypointName;
 
-  Timer? _telemetryTimer;
+  bool _hasRealGpsFix = false;
+  bool get hasRealGpsFix => _hasRealGpsFix;
+
+  Timer? _heartbeatTimer;
   int _waypointIndex = 0;
 
+  // High-precision (6 decimal places, ~0.1m accuracy) campus landmark reference points
   static const List<Map<String, dynamic>> _campusWaypoints = [
-    {'name': 'Satluj Hostel Loop', 'lat': 30.9686, 'lng': 76.4685, 'heading': 45.0},
-    {'name': 'Chenab & Beas Transit Point', 'lat': 30.9678, 'lng': 76.4698, 'heading': 65.0},
-    {'name': 'Nalanda Library Junction', 'lat': 30.9676, 'lng': 76.4732, 'heading': 90.0},
-    {'name': 'J.C. Bose Academic Block', 'lat': 30.9660, 'lng': 76.4720, 'heading': 180.0},
-    {'name': 'Super Academic Facility', 'lat': 30.9652, 'lng': 76.4710, 'heading': 225.0},
-    {'name': 'Main Campus Entrance Gate', 'lat': 30.9642, 'lng': 76.4680, 'heading': 270.0},
-    {'name': 'Mess & Student Center', 'lat': 30.9670, 'lng': 76.4675, 'heading': 340.0},
+    {'name': 'Satluj Hostel', 'lat': 30.969205, 'lng': 76.468457, 'heading': 45.0},
+    {'name': 'Beas Hostel', 'lat': 30.969055, 'lng': 76.466919, 'heading': 85.0},
+    {'name': 'Chenab Hostel', 'lat': 30.969049, 'lng': 76.465750, 'heading': 110.0},
+    {'name': 'Brahmaputra Boys Hostel', 'lat': 30.966980, 'lng': 76.466956, 'heading': 135.0},
+    {'name': 'Annapurna Mess', 'lat': 30.967113, 'lng': 76.467860, 'heading': 160.0},
+    {'name': 'Chintpurni Hostel', 'lat': 30.967394, 'lng': 76.468531, 'heading': 180.0},
+    {'name': 'Ravi Hostel & Utility Block', 'lat': 30.966900, 'lng': 76.469900, 'heading': 210.0},
+    {'name': 'S. Bhatnagar Academic Block', 'lat': 30.969016, 'lng': 76.470604, 'heading': 240.0},
+    {'name': 'Satish Dhawan Block', 'lat': 30.968875, 'lng': 76.471732, 'heading': 270.0},
+    {'name': 'Nalanda Library Junction', 'lat': 30.967083, 'lng': 76.473196, 'heading': 295.0},
+    {'name': 'M. Visvesvaraya Admin Block', 'lat': 30.968648, 'lng': 76.473274, 'heading': 320.0},
+    {'name': 'J.C. Bose Block', 'lat': 30.968850, 'lng': 76.474774, 'heading': 340.0},
+    {'name': 'Main Gate Campus Entrance', 'lat': 30.971321, 'lng': 76.473160, 'heading': 15.0},
   ];
 
   int get totalSeats => 32;
@@ -85,23 +113,6 @@ class DriverController extends ChangeNotifier {
       .length;
 
   void _initData() {
-    _requests.addAll([
-      RideRequest(
-        id: 'REQ-101',
-        from: 'Satlej Hostel',
-        to: 'JC Bose Block',
-        time: 'Just now',
-        userName: 'Aman Sharma',
-      ),
-      RideRequest(
-        id: 'REQ-102',
-        from: 'Beas Hostel',
-        to: 'Central Library',
-        time: '2 mins ago',
-        userName: 'Priya Patel',
-      ),
-    ]);
-
     _tickets.addAll([
       BusTicket(
         id: 'TKT-8841',
@@ -118,6 +129,49 @@ class DriverController extends ChangeNotifier {
         status: 'Valid',
       ),
     ]);
+
+    // Ensure database carts exist
+    _firebaseService.ensureDefaultCartsExist();
+
+    // Stream vehicles dynamically from the database
+    _cartsSub = _firebaseService.streamAvailableCarts().listen((carts) {
+      if (carts.isNotEmpty) {
+        _availableCarts = carts;
+        if (!_availableCarts.any((c) => c.id == _selectedCart)) {
+          _selectedCart = _availableCarts.first.id;
+        }
+        notifyListeners();
+      }
+    });
+
+    // Stream real-time student ride requests dynamically from the database
+    _ridesSub = _firebaseService.streamPendingRequests().listen((incoming) {
+      _requests.clear();
+      _requests.addAll(incoming);
+      notifyListeners();
+    });
+
+    // Probe hardware GPS for initial phone location
+    _checkInitialDeviceLocation();
+  }
+
+  /// Checks if location permission is already available and reads phone GPS location.
+  Future<void> _checkInitialDeviceLocation() async {
+    try {
+      final hasPerm = await _locationService.checkPermission();
+      if (hasPerm) {
+        final loc = await _locationService.getCurrentLocation();
+        if (loc != null) {
+          _applyDeviceLocation(
+            lat: loc['latitude']!,
+            lng: loc['longitude']!,
+            head: loc['heading'] ?? 0.0,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('DriverController checkInitialDeviceLocation notice: $e');
+    }
   }
 
   /// Switches mode between 'cart' and 'bus'.
@@ -128,10 +182,85 @@ class DriverController extends ChangeNotifier {
     }
   }
 
+  String get selectedCartName {
+    final match = _availableCarts.where((c) => c.id == _selectedCart).firstOrNull;
+    if (match != null) return match.name;
+    switch (_selectedCart) {
+      case 'cart-1':
+        return 'EV Cart #1 (Satlej-Academic Loop)';
+      case 'cart-2':
+        return 'EV Cart #2 (Hostel Shuttle)';
+      case 'cart-3':
+        return 'EV Cart #3 (Main Gate Express)';
+      default:
+        return 'EV Cart ($_selectedCart)';
+    }
+  }
+
+  /// Resolves the nearest named IIT Ropar campus landmark based on current GPS coordinates.
+  String _resolveNearestLandmark(double lat, double lng) {
+    String closestName = 'IIT Ropar Campus';
+    double minSqDist = double.infinity;
+
+    for (final wp in _campusWaypoints) {
+      final wpLat = wp['lat'] as double;
+      final wpLng = wp['lng'] as double;
+      final dLat = (lat - wpLat).abs();
+      final dLng = (lng - wpLng).abs();
+      final sqDist = (dLat * dLat) + (dLng * dLng);
+
+      if (sqDist < minSqDist) {
+        minSqDist = sqDist;
+        closestName = wp['name'] as String;
+      }
+    }
+
+    // ~150m threshold (0.00000225 deg^2)
+    if (minSqDist < 0.000005) {
+      return closestName;
+    } else if (minSqDist < 0.000025) {
+      return 'Near $closestName';
+    }
+    return closestName;
+  }
+
+  /// Updates local state with real GPS coordinates (6-decimal precision).
+  void _applyDeviceLocation({
+    required double lat,
+    required double lng,
+    required double head,
+  }) {
+    _hasRealGpsFix = true;
+    _latitude = double.parse(lat.toStringAsFixed(6));
+    _longitude = double.parse(lng.toStringAsFixed(6));
+    _heading = double.parse(head.toStringAsFixed(1));
+    _currentWaypointName = _resolveNearestLandmark(_latitude, _longitude);
+    notifyListeners();
+  }
+
+  /// Immediately pushes current 6-decimal coordinates and online status to Firebase "locations".
+  void _syncLocationToFirebase() {
+    _firebaseService.updateVehicleLocation(
+      cartId: _selectedCart,
+      cartName: selectedCartName,
+      latitude: double.parse(_latitude.toStringAsFixed(6)),
+      longitude: double.parse(_longitude.toStringAsFixed(6)),
+      heading: _heading,
+      batteryLevel: _battery,
+      isOnline: _isOnline,
+    );
+  }
+
   /// Updates selected cart assignment.
   void setSelectedCart(String cart) {
     if (_selectedCart != cart) {
+      if (_isOnline) {
+        _firebaseService.setVehicleOffline(_selectedCart);
+      }
       _selectedCart = cart;
+      if (_isOnline) {
+        _syncLocationToFirebase();
+      }
       notifyListeners();
     }
   }
@@ -143,45 +272,82 @@ class DriverController extends ChangeNotifier {
   }
 
   /// Toggles driver on-duty availability and active vehicle status.
-  void toggleOnlineStatus() {
+  /// When online:
+  /// - Prompts/verifies Android native GPS permissions.
+  /// - Reads phone GPS coordinates with 6-decimal precision.
+  /// - Starts continuous real-time hardware location streaming.
+  /// - Pushes live location to Firebase "locations".
+  /// When offline:
+  /// - Stops location streaming.
+  /// - Sets vehicle status to offline in Firebase "locations".
+  Future<void> toggleOnlineStatus() async {
     _isOnline = !_isOnline;
-    if (!_isOnline && _isBroadcasting) {
-      // Pause telemetry when driver goes offline
-      _isBroadcasting = false;
-      _telemetryTimer?.cancel();
-      _telemetryTimer = null;
-    }
-    notifyListeners();
-  }
 
-  /// Starts or stops periodic GPS telemetry broadcasting.
-  void toggleLocationBroadcast() {
-    _isBroadcasting = !_isBroadcasting;
-    if (_isBroadcasting) {
-      _isOnline = true; // Automatically mark vehicle active & online when broadcasting
-      _startTelemetryTimer();
-    } else {
-      _telemetryTimer?.cancel();
-      _telemetryTimer = null;
-    }
-    notifyListeners();
-  }
+    if (_isOnline) {
+      _isBroadcasting = true;
 
-  void _startTelemetryTimer() {
-    _telemetryTimer?.cancel();
-    _telemetryTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      _waypointIndex = (_waypointIndex + 1) % _campusWaypoints.length;
-      final wp = _campusWaypoints[_waypointIndex];
-      _latitude = wp['lat'] as double;
-      _longitude = wp['lng'] as double;
-      _heading = wp['heading'] as double;
-      _currentWaypointName = wp['name'] as String;
-
-      // Realistically decrement battery very slowly
-      if (_waypointIndex == 0 && _battery > 15) {
-        _battery -= 1;
+      // 1. Request Android native location permission
+      final granted = await _locationService.requestPermission();
+      if (granted) {
+        // 2. Fetch current real hardware GPS location immediately
+        final loc = await _locationService.getCurrentLocation();
+        if (loc != null) {
+          _applyDeviceLocation(
+            lat: loc['latitude']!,
+            lng: loc['longitude']!,
+            head: loc['heading'] ?? 0.0,
+          );
+        }
       }
 
+      // 3. Start continuous real-time hardware GPS listener
+      _locationService.startListening(
+        onUpdate: (lat, lng, head) {
+          _applyDeviceLocation(lat: lat, lng: lng, head: head);
+          if (_isOnline) {
+            _syncLocationToFirebase();
+          }
+        },
+      );
+
+      // 4. Start heartbeat timer (syncs to Firebase every 3s to refresh timestamp)
+      _startHeartbeatTimer();
+
+      // 5. Immediately sync to Firebase "locations"
+      _syncLocationToFirebase();
+    } else {
+      _isBroadcasting = false;
+      _locationService.stopListening();
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = null;
+      await _firebaseService.setVehicleOffline(_selectedCart);
+    }
+    notifyListeners();
+  }
+
+  /// Alias for duty toggle to maintain backward compatibility.
+  void toggleLocationBroadcast() {
+    toggleOnlineStatus();
+  }
+
+  /// Periodic heartbeat timer to keep Firebase 'updatedAt' fresh while online.
+  void _startHeartbeatTimer() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!_isOnline) return;
+
+      // If no hardware GPS fix exists yet (e.g. running inside desktop or simulator without GPS),
+      // smoothly cycle landmark coordinates so test environments show movement.
+      if (!_hasRealGpsFix) {
+        _waypointIndex = (_waypointIndex + 1) % _campusWaypoints.length;
+        final wp = _campusWaypoints[_waypointIndex];
+        _latitude = double.parse((wp['lat'] as double).toStringAsFixed(6));
+        _longitude = double.parse((wp['lng'] as double).toStringAsFixed(6));
+        _heading = (wp['heading'] as num).toDouble();
+        _currentWaypointName = wp['name'] as String;
+      }
+
+      _syncLocationToFirebase();
       notifyListeners();
     });
   }
@@ -194,9 +360,9 @@ class DriverController extends ChangeNotifier {
       req.status = 'accepted';
       _activeRide = req;
 
-      // Auto-enable telemetry broadcasting when responding to a ride hail
-      if (!_isBroadcasting) {
-        toggleLocationBroadcast();
+      // Auto-enable online status when responding to a ride hail
+      if (!_isOnline) {
+        toggleOnlineStatus();
       } else {
         notifyListeners();
       }
@@ -209,10 +375,13 @@ class DriverController extends ChangeNotifier {
 
     if (_activeRide!.status == 'accepted') {
       _activeRide!.status = 'arriving';
+      _firebaseService.updateRideStatus(_activeRide!.id, 'arriving');
     } else if (_activeRide!.status == 'arriving') {
       _activeRide!.status = 'in_progress';
+      _firebaseService.updateRideStatus(_activeRide!.id, 'in_progress');
     } else if (_activeRide!.status == 'in_progress') {
       _activeRide!.status = 'completed';
+      _firebaseService.updateRideStatus(_activeRide!.id, 'completed');
       _activeRide = null; // trip finished
     }
     notifyListeners();
@@ -220,30 +389,21 @@ class DriverController extends ChangeNotifier {
 
   /// Cancels the active ride.
   void cancelActiveRide() {
+    if (_activeRide != null) {
+      _firebaseService.updateRideStatus(_activeRide!.id, 'cancelled');
+    }
     _activeRide = null;
     notifyListeners();
   }
 
-  /// Injects a test ride request for demonstration.
+  /// Injects a test ride request directly into the database for demonstration.
   void addTestRequest() {
-    final id = 'REQ-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-    _requests.insert(
-      0,
-      RideRequest(
-        id: id,
-        from: 'Chenab Hostel',
-        to: 'Student Activity Center (SAC)',
-        time: 'Just now',
-        userName: 'Rohan Verma',
-      ),
-    );
-    notifyListeners();
+    _firebaseService.createTestRideRequest();
   }
 
   /// Extracts ticket code from potential QR contents (plain, JSON, or URL).
   String _parseTicketCode(String raw) {
     final trimmed = raw.trim();
-    // Check if JSON payload (e.g. {"id": "TKT-1234", ...})
     if (trimmed.startsWith('{') && trimmed.contains('id')) {
       final idMatch = RegExp(r'"id"\s*:\s*"([^"]+)"').firstMatch(trimmed);
       if (idMatch != null) {
@@ -322,7 +482,13 @@ class DriverController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _telemetryTimer?.cancel();
+    _cartsSub?.cancel();
+    _ridesSub?.cancel();
+    _locationService.stopListening();
+    _heartbeatTimer?.cancel();
+    if (_isOnline) {
+      _firebaseService.setVehicleOffline(_selectedCart);
+    }
     super.dispose();
   }
 }
