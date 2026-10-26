@@ -10,6 +10,13 @@ class DriverController extends ChangeNotifier {
     _initData();
   }
 
+  // Driver / Vehicle online duty status
+  bool _isOnline = true;
+  bool get isOnline => _isOnline;
+
+  String get vehicleStatusText =>
+      _isOnline ? 'Online · Vehicle Active' : 'Offline · Vehicle Inactive';
+
   // Active mode: 'cart' or 'bus'
   String _driverMode = 'cart';
   String get driverMode => _driverMode;
@@ -135,10 +142,23 @@ class DriverController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Toggles driver on-duty availability and active vehicle status.
+  void toggleOnlineStatus() {
+    _isOnline = !_isOnline;
+    if (!_isOnline && _isBroadcasting) {
+      // Pause telemetry when driver goes offline
+      _isBroadcasting = false;
+      _telemetryTimer?.cancel();
+      _telemetryTimer = null;
+    }
+    notifyListeners();
+  }
+
   /// Starts or stops periodic GPS telemetry broadcasting.
   void toggleLocationBroadcast() {
     _isBroadcasting = !_isBroadcasting;
     if (_isBroadcasting) {
+      _isOnline = true; // Automatically mark vehicle active & online when broadcasting
       _startTelemetryTimer();
     } else {
       _telemetryTimer?.cancel();

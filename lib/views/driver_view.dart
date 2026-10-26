@@ -58,7 +58,20 @@ class _DriverViewState extends State<DriverView> {
     );
   }
 
+  void _toggleOnline() {
+    _controller.toggleOnlineStatus();
+    if (_controller.isOnline) {
+      _showToast('You are ONLINE: Vehicle is active & visible on campus map.');
+    } else {
+      _showToast('You are OFFLINE: Vehicle is inactive (off-duty).');
+    }
+  }
+
   void _onAcceptRequest(dynamic id) {
+    if (!_controller.isOnline) {
+      _showToast('Please go ONLINE first to accept rides!');
+      return;
+    }
     _controller.acceptRequest(id);
     _showToast('Ride accepted! GPS broadcast started.');
   }
@@ -201,7 +214,12 @@ class _DriverViewState extends State<DriverView> {
                   ],
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
+
+                // Long rectangular Driver & Vehicle Online/Offline Button
+                _buildOnlineDutyButton(),
+
+                const SizedBox(height: 18),
 
                 // Mode Selector: EV Cart Dispatch vs City Bus Scanner
                 Row(
@@ -233,6 +251,49 @@ class _DriverViewState extends State<DriverView> {
           ),
         );
       },
+    );
+  }
+
+  // Long rectangular button: Green when Online (active) and Red when Offline (inactive)
+  Widget _buildOnlineDutyButton() {
+    final isOnline = _controller.isOnline;
+    final color = isOnline ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: _toggleOnline,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isOnline ? Icons.check_circle_rounded : Icons.power_settings_new_rounded,
+              size: 20,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              isOnline ? 'ONLINE • VEHICLE ACTIVE' : 'OFFLINE • VEHICLE INACTIVE',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
