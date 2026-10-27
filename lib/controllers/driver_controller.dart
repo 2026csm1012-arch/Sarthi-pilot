@@ -41,6 +41,7 @@ class DriverController extends ChangeNotifier {
 
   StreamSubscription<List<VehicleCart>>? _cartsSub;
   StreamSubscription<List<RideRequest>>? _ridesSub;
+  StreamSubscription<RideRequest?>? _activeRideSub;
 
   // Capacity status: 'Empty', 'Filling', 'Full'
   String _occupancy = 'Empty';
@@ -63,6 +64,14 @@ class DriverController extends ChangeNotifier {
   // Active accepted trip
   RideRequest? _activeRide;
   RideRequest? get activeRide => _activeRide;
+
+  // Cancellation notice from passenger
+  String? _cancellationNotice;
+  String? get cancellationNotice => _cancellationNotice;
+  void clearCancellationNotice() {
+    _cancellationNotice = null;
+    notifyListeners();
+  }
 
   // Live GPS Telemetry state with 6-digit decimal precision
   bool _isBroadcasting = false;
@@ -146,6 +155,12 @@ class DriverController extends ChangeNotifier {
 
     // Stream real-time student ride requests dynamically from the database
     _ridesSub = _firebaseService.streamPendingRequests().listen((incoming) {
+      // Check if a pending request disappeared (cancelled by student before accept)
+      for (final prev in _requests) {
+        if (!incoming.any((r) => r.id == prev.id) && _activeRide?.id != prev.id) {
+          _cancellationNotice = '${prev.userName} cancelled ride request (${prev.from} → ${prev.to}).';
+        }
+      }
       _requests.clear();
       _requests.addAll(incoming);
       notifyListeners();
@@ -359,6 +374,17 @@ class DriverController extends ChangeNotifier {
       final req = _requests.removeAt(idx);
       req.status = 'accepted';
       _activeRide = req;
+      _cancellationNotice = null;
+
+      // Update Firestore so passenger app receives the accepted status immediately
+      _firebaseService.acceptRideRequest(
+        req.id,
+        _selectedCart,
+        cartName: selectedCartName,
+      );
+
+      // Listen for passenger cancellation or status changes in real-time
+      _listenToActiveRide(req.id);
 
       // Auto-enable online status when responding to a ride hail
       if (!_isOnline) {
@@ -366,6 +392,42 @@ class DriverController extends ChangeNotifier {
       } else {
         notifyListeners();
       }
+    }
+  }
+
+  /// Listens to the accepted ride document in Firestore for passenger cancellation.
+  void _listenToActiveRide(String rideId) {
+    _activeRideSub?.cancel();
+    _activeRideSub = _firebaseService.streamRide(rideId).listen((ride) {
+      if (ride == null) return;
+
+      if (ride.status == 'cancelled') {
+        final passenger = _activeRide?.userName ?? 'Passenger';
+        final from = _activeRide?.from ?? ride.from;
+        final to = _activeRide?.to ?? ride.to;
+        _activeRide = null;
+        _activeRideSub?.cancel();
+        _activeRideSub = null;
+        _cancellationNotice = '$passenger cancelled the ride ($from → $to).';
+        notifyListeners();
+      } else if (ride.status == 'completed' || ride.status == 'rejected') {
+        _activeRide = null;
+        _activeRideSub?.cancel();
+        _activeRideSub = null;
+        notifyListeners();
+      }
+    }, onError: (err) {
+      debugPrint('Error listening to active ride: $err');
+    });
+  }
+
+  /// Rejects a student ride request from the queue and updates Firestore.
+  void rejectRequest(dynamic id) {
+    final idx = _requests.indexWhere((req) => req.matchesId(id));
+    if (idx != -1) {
+      final req = _requests.removeAt(idx);
+      _firebaseService.rejectRideRequest(req.id);
+      notifyListeners();
     }
   }
 
@@ -382,6 +444,8 @@ class DriverController extends ChangeNotifier {
     } else if (_activeRide!.status == 'in_progress') {
       _activeRide!.status = 'completed';
       _firebaseService.updateRideStatus(_activeRide!.id, 'completed');
+      _activeRideSub?.cancel();
+      _activeRideSub = null;
       _activeRide = null; // trip finished
     }
     notifyListeners();
@@ -389,6 +453,8 @@ class DriverController extends ChangeNotifier {
 
   /// Cancels the active ride.
   void cancelActiveRide() {
+    _activeRideSub?.cancel();
+    _activeRideSub = null;
     if (_activeRide != null) {
       _firebaseService.updateRideStatus(_activeRide!.id, 'cancelled');
     }
@@ -484,6 +550,7 @@ class DriverController extends ChangeNotifier {
   void dispose() {
     _cartsSub?.cancel();
     _ridesSub?.cancel();
+    _activeRideSub?.cancel();
     _locationService.stopListening();
     _heartbeatTimer?.cancel();
     if (_isOnline) {
