@@ -72,6 +72,11 @@ class _DriverViewState extends State<DriverView> {
     _showToast('Ride accepted! Vehicle is ONLINE & GPS broadcast started.');
   }
 
+  void _onRejectRequest(dynamic id) {
+    _controller.rejectRequest(id);
+    _showToast('Ride request declined.');
+  }
+
   void _onAddTestRequest() {
     _controller.addTestRequest();
     _showToast('New student hail request received!');
@@ -330,6 +335,10 @@ class _DriverViewState extends State<DriverView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Cancellation alert if passenger cancelled
+        if (_controller.cancellationNotice != null)
+          _buildCancellationBanner(),
+
         // Active in-transit ride banner (if driver accepted a ride)
         _buildActiveRideCard(),
 
@@ -510,14 +519,29 @@ class _DriverViewState extends State<DriverView> {
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: () => _onRejectRequest(req.id),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFDC2626),
+              side: const BorderSide(color: Color(0xFFFCA5A5)),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text(
+              'Reject',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 6),
           ElevatedButton(
             onPressed: () => _onAcceptRequest(req.id),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF059669),
               foregroundColor: Colors.white,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               visualDensity: VisualDensity.compact,
             ),
@@ -573,6 +597,54 @@ class _DriverViewState extends State<DriverView> {
             color: textColor,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCancellationBanner() {
+    final notice = _controller.cancellationNotice;
+    if (notice == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ride Cancelled by Passenger',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: Color(0xFF991B1B),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  notice,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFFB91C1C)),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _controller.clearCancellationNotice(),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.close, size: 16, color: Color(0xFF991B1B)),
+            ),
+          ),
+        ],
       ),
     );
   }

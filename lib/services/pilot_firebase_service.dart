@@ -57,8 +57,8 @@ class PilotFirebaseService {
       final initialCarts = [
         {
           'name': 'EV Cart #1 (Satlej-Academic Loop)',
-          'status': 'active',
-          'driverOnline': true,
+          'status': 'offline',
+          'driverOnline': false,
           'batteryLevel': 95,
           'latitude': 30.969205,
           'longitude': 76.468457,
@@ -67,8 +67,8 @@ class PilotFirebaseService {
         },
         {
           'name': 'EV Cart #2 (Hostel Shuttle)',
-          'status': 'active',
-          'driverOnline': true,
+          'status': 'offline',
+          'driverOnline': false,
           'batteryLevel': 90,
           'latitude': 30.969055,
           'longitude': 76.466919,
@@ -111,6 +111,17 @@ class PilotFirebaseService {
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) => RideRequest.fromDoc(doc)).toList();
+    });
+  }
+
+  /// Real-time stream of a specific ride's document by [rideId].
+  Stream<RideRequest?> streamRide(String rideId) {
+    final ref = _ridesRef;
+    if (ref == null) return Stream.value(null);
+
+    return ref.doc(rideId).snapshots().map((doc) {
+      if (!doc.exists || doc.data() == null) return null;
+      return RideRequest.fromDoc(doc);
     });
   }
 
@@ -170,15 +181,35 @@ class PilotFirebaseService {
   }
 
   /// Accepts a student ride in Firestore and assigns it to this vehicle cart.
-  Future<void> acceptRideRequest(String rideId, String cartId) async {
+  Future<void> acceptRideRequest(String rideId, String cartId, {String? cartName}) async {
     try {
-      await _ridesRef?.doc(rideId).update({
+      final data = <String, dynamic>{
         'status': 'accepted',
         'assignedCartId': cartId,
         'acceptedAt': FieldValue.serverTimestamp(),
-      });
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (cartName != null) {
+        data['assignedCartName'] = cartName;
+      }
+      await _ridesRef?.doc(rideId).update(data);
+      debugPrint('Pilot accepted ride $rideId for cart $cartId ($cartName)');
     } catch (e) {
       debugPrint('acceptRideRequest notice: $e');
+    }
+  }
+
+  /// Rejects a student ride in Firestore.
+  Future<void> rejectRideRequest(String rideId) async {
+    try {
+      await _ridesRef?.doc(rideId).update({
+        'status': 'rejected',
+        'rejectedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('Pilot rejected ride $rideId');
+    } catch (e) {
+      debugPrint('rejectRideRequest notice: $e');
     }
   }
 
