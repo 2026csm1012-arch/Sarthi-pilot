@@ -22,10 +22,11 @@ class VehicleCart {
   final double longitude;
   final double heading;
 
-  bool get isOnline =>
-      status.toLowerCase() == 'active' ||
-      status.toLowerCase() == 'online' ||
-      driverOnline;
+  bool get isOnline {
+    final s = status.trim().toLowerCase();
+    if (s == 'offline' || !driverOnline) return false;
+    return s == 'active' || s == 'online' || driverOnline;
+  }
 
   factory VehicleCart.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};

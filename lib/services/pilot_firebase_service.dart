@@ -57,8 +57,8 @@ class PilotFirebaseService {
       final initialCarts = [
         {
           'name': 'EV Cart #1 (Satlej-Academic Loop)',
-          'status': 'active',
-          'driverOnline': true,
+          'status': 'offline',
+          'driverOnline': false,
           'batteryLevel': 95,
           'latitude': 30.969205,
           'longitude': 76.468457,
@@ -67,8 +67,8 @@ class PilotFirebaseService {
         },
         {
           'name': 'EV Cart #2 (Hostel Shuttle)',
-          'status': 'active',
-          'driverOnline': true,
+          'status': 'offline',
+          'driverOnline': false,
           'batteryLevel': 90,
           'latitude': 30.969055,
           'longitude': 76.466919,
