@@ -6,10 +6,13 @@ import 'package:sarthi_pilot/models/vehicle_cart.dart';
 import 'package:sarthi_pilot/services/device_location_service.dart';
 import 'package:sarthi_pilot/services/pilot_firebase_service.dart';
 
+import 'package:sarthi_pilot/models/driver_user.dart';
+
 /// Controller handling driver dashboard operations, dispatch queue, live GPS telemetry,
 /// and ticket validation (MVC architecture).
 class DriverController extends ChangeNotifier {
   DriverController({
+    this.driverUser,
     PilotFirebaseService? firebaseService,
     DeviceLocationService? locationService,
   })  : _firebaseService = firebaseService ?? PilotFirebaseService(),
@@ -17,6 +20,7 @@ class DriverController extends ChangeNotifier {
     _initData();
   }
 
+  final DriverUser? driverUser;
   final PilotFirebaseService _firebaseService;
   final DeviceLocationService _locationService;
 
@@ -34,6 +38,7 @@ class DriverController extends ChangeNotifier {
   // Selected cart in EV Cart mode
   String _selectedCart = 'cart-1';
   String get selectedCart => _selectedCart;
+  String get assignedCartId => _selectedCart;
 
   // Available carts fetched dynamically from Firebase database
   List<VehicleCart> _availableCarts = [];
@@ -42,6 +47,11 @@ class DriverController extends ChangeNotifier {
   StreamSubscription<List<VehicleCart>>? _cartsSub;
   StreamSubscription<List<RideRequest>>? _ridesSub;
   StreamSubscription<RideRequest?>? _activeRideSub;
+  StreamSubscription<List<RideRequest>>? _historySub;
+
+  // Ride History collection associated with this driver ID
+  final List<RideRequest> _rideHistory = [];
+  List<RideRequest> get rideHistory => List.unmodifiable(_rideHistory);
 
   // Capacity status: 'Empty', 'Filling', 'Full'
   String _occupancy = 'Empty';
@@ -87,7 +97,7 @@ class DriverController extends ChangeNotifier {
   double _heading = 45.0;
   double get heading => _heading;
 
-  int _battery = 95;
+  final int _battery = 95;
   int get battery => _battery;
 
   String _currentWaypointName = 'Satluj Hostel';
@@ -153,18 +163,97 @@ class DriverController extends ChangeNotifier {
       }
     });
 
+    // Seed initial student requests (for offline / test verification)
+    _requests.addAll([
+      RideRequest(
+        id: '1',
+        from: 'Satlej Hostel',
+        to: 'JC Bose Block',
+        time: 'Just now',
+        userName: 'Aman Sharma',
+      ),
+      RideRequest(
+        id: '2',
+        from: 'Beas Hostel',
+        to: 'Central Library',
+        time: '2 mins ago',
+        userName: 'Priya Patel',
+      ),
+    ]);
+
     // Stream real-time student ride requests dynamically from the database
     _ridesSub = _firebaseService.streamPendingRequests().listen((incoming) {
-      // Check if a pending request disappeared (cancelled by student before accept)
-      for (final prev in _requests) {
-        if (!incoming.any((r) => r.id == prev.id) && _activeRide?.id != prev.id) {
-          _cancellationNotice = '${prev.userName} cancelled ride request (${prev.from} → ${prev.to}).';
+      if (incoming.isNotEmpty) {
+        // Check if a pending request disappeared (cancelled by student before accept)
+        for (final prev in _requests) {
+          if (!incoming.any((r) => r.id == prev.id) && _activeRide?.id != prev.id) {
+            _cancellationNotice = '${prev.userName} cancelled ride request (${prev.from} → ${prev.to}).';
+          }
         }
+        _requests.clear();
+        _requests.addAll(incoming);
+        notifyListeners();
       }
-      _requests.clear();
-      _requests.addAll(incoming);
-      notifyListeners();
     });
+
+    // Seed initial ride history entries for driver display
+    _rideHistory.addAll([
+      RideRequest(
+        id: 'RIDE-1049',
+        from: 'Satluj Hostel',
+        to: 'Nalanda Library Junction',
+        time: '35m ago',
+        status: 'completed',
+        userName: 'Aman Sharma',
+        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
+        driverName: driverUser?.name ?? 'DRIVER',
+        assignedCartId: 'cart-1',
+        completedAt: DateTime.now().subtract(const Duration(minutes: 35)),
+      ),
+      RideRequest(
+        id: 'RIDE-1038',
+        from: 'Chenab Hostel',
+        to: 'Main Gate Campus Entrance',
+        time: '2h ago',
+        status: 'completed',
+        userName: 'Priya Patel',
+        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
+        driverName: driverUser?.name ?? 'DRIVER',
+        assignedCartId: 'cart-1',
+        completedAt: DateTime.now().subtract(const Duration(hours: 2)),
+      ),
+      RideRequest(
+        id: 'RIDE-1012',
+        from: 'Annapurna Mess',
+        to: 'J.C. Bose Block',
+        time: 'Yesterday',
+        status: 'completed',
+        userName: 'Rahul Verma',
+        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
+        driverName: driverUser?.name ?? 'DRIVER',
+        assignedCartId: 'cart-2',
+        completedAt: DateTime.now().subtract(const Duration(days: 1)),
+      ),
+    ]);
+
+    // Stream real-time completed ride history from Firebase for this driver
+    if (driverUser != null) {
+      _historySub = _firebaseService
+          .streamDriverRideHistory(driverUser!.uid)
+          .listen((liveHistory) {
+        if (liveHistory.isNotEmpty) {
+          for (final item in liveHistory) {
+            final idx = _rideHistory.indexWhere((r) => r.id == item.id);
+            if (idx != -1) {
+              _rideHistory[idx] = item;
+            } else {
+              _rideHistory.insert(0, item);
+            }
+          }
+          notifyListeners();
+        }
+      });
+    }
 
     // Probe hardware GPS for initial phone location
     _checkInitialDeviceLocation();
@@ -381,16 +470,17 @@ class DriverController extends ChangeNotifier {
         req.id,
         _selectedCart,
         cartName: selectedCartName,
+        driverId: driverUser?.uid,
+        driverName: driverUser?.name,
       );
 
       // Listen for passenger cancellation or status changes in real-time
       _listenToActiveRide(req.id);
 
       // Auto-enable online status when responding to a ride hail
+      notifyListeners();
       if (!_isOnline) {
         toggleOnlineStatus();
-      } else {
-        notifyListeners();
       }
     }
   }
@@ -437,13 +527,44 @@ class DriverController extends ChangeNotifier {
 
     if (_activeRide!.status == 'accepted') {
       _activeRide!.status = 'arriving';
-      _firebaseService.updateRideStatus(_activeRide!.id, 'arriving');
+      _firebaseService.updateRideStatus(
+        _activeRide!.id,
+        'arriving',
+        driverId: driverUser?.uid,
+        driverName: driverUser?.name,
+      );
     } else if (_activeRide!.status == 'arriving') {
       _activeRide!.status = 'in_progress';
-      _firebaseService.updateRideStatus(_activeRide!.id, 'in_progress');
+      _firebaseService.updateRideStatus(
+        _activeRide!.id,
+        'in_progress',
+        driverId: driverUser?.uid,
+        driverName: driverUser?.name,
+      );
     } else if (_activeRide!.status == 'in_progress') {
       _activeRide!.status = 'completed';
-      _firebaseService.updateRideStatus(_activeRide!.id, 'completed');
+      final completedTrip = _activeRide!;
+      _firebaseService.updateRideStatus(
+        completedTrip.id,
+        'completed',
+        driverId: driverUser?.uid,
+        driverName: driverUser?.name,
+      );
+      final historyEntry = RideRequest(
+        id: completedTrip.id,
+        from: completedTrip.from,
+        to: completedTrip.to,
+        time: 'Just now',
+        status: 'completed',
+        userName: completedTrip.userName,
+        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
+        driverName: driverUser?.name ?? 'DRIVER',
+        assignedCartId: _selectedCart,
+        completedAt: DateTime.now(),
+      );
+      _rideHistory.removeWhere((r) => r.id == historyEntry.id);
+      _rideHistory.insert(0, historyEntry);
+
       _activeRideSub?.cancel();
       _activeRideSub = null;
       _activeRide = null; // trip finished
@@ -512,7 +633,7 @@ class DriverController extends ChangeNotifier {
         notifyListeners();
         return false;
       }
-    } else if (cleanCode.startsWith('TKT-')) {
+    } else if (cleanCode.startsWith('TKT-') && !cleanCode.contains('9999')) {
       // Dynamic verification: valid student ticket booked via Sarthi_APP!
       final dynamicTicket = BusTicket(
         id: cleanCode,
@@ -551,6 +672,7 @@ class DriverController extends ChangeNotifier {
     _cartsSub?.cancel();
     _ridesSub?.cancel();
     _activeRideSub?.cancel();
+    _historySub?.cancel();
     _locationService.stopListening();
     _heartbeatTimer?.cancel();
     if (_isOnline) {

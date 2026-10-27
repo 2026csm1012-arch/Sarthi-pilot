@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:sarthi_pilot/controllers/auth_controller.dart';
 import 'package:sarthi_pilot/controllers/driver_controller.dart';
 import 'package:sarthi_pilot/models/driver_user.dart';
 import 'package:sarthi_pilot/models/ride_request.dart';
-import 'package:sarthi_pilot/views/login_view.dart';
+import 'package:sarthi_pilot/views/driver_profile_view.dart';
 import 'package:sarthi_pilot/views/qr_scanner_view.dart';
 
 /// Driver dashboard view in MVC architecture.
@@ -30,7 +29,7 @@ class _DriverViewState extends State<DriverView> {
   @override
   void initState() {
     super.initState();
-    _controller = DriverController();
+    _controller = DriverController(driverUser: widget.driverUser);
   }
 
   @override
@@ -155,34 +154,90 @@ class _DriverViewState extends State<DriverView> {
               ],
             ),
             actions: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  border: Border.all(color: const Color(0xFFA7F3D0)),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Driver View',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF047857),
+              InkWell(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DriverProfileView(
+                        driverUser: widget.driverUser,
+                        controller: _controller,
+                      ),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4F5),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE4E4E7)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(
+                        radius: 11,
+                        backgroundColor: const Color(0xFF059669),
+                        child: Text(
+                          widget.driverUser.name.isNotEmpty
+                              ? widget.driverUser.name[0].toUpperCase()
+                              : 'D',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        widget.driverUser.name,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF27272A),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.electric_rickshaw,
+                              size: 11,
+                              color: Color(0xFF047857),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              _controller.assignedCartId,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF047857),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: Color(0xFF71717A),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.logout_rounded, size: 18, color: Color(0xFF71717A)),
-                tooltip: 'Sign Out',
-                onPressed: () async {
-                  await AuthController().signOut();
-                  if (!context.mounted) return;
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute<void>(builder: (_) => const LoginView()),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
             ],
           ),
           body: SafeArea(
@@ -215,12 +270,7 @@ class _DriverViewState extends State<DriverView> {
                   ],
                 ),
 
-                const SizedBox(height: 14),
-
-                // Long rectangular Driver & Vehicle Online/Offline Button
-                _buildOnlineDutyButton(),
-
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
                 // Mode Selector: EV Cart Dispatch vs City Bus Scanner
                 Row(
@@ -335,6 +385,10 @@ class _DriverViewState extends State<DriverView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Cart Active / Inactive Toggle (Scoped to EV Cart Tab)
+        _buildOnlineDutyButton(),
+        const SizedBox(height: 16),
+
         // Cancellation alert if passenger cancelled
         if (_controller.cancellationNotice != null)
           _buildCancellationBanner(),

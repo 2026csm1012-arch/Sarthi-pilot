@@ -7,8 +7,13 @@ class RideRequest {
     required this.from,
     required this.to,
     required this.time,
-    this.status = 'pending', // 'pending', 'accepted', 'arriving', 'in_progress', 'completed'
+    this.status = 'pending', // 'pending', 'accepted', 'arriving', 'in_progress', 'completed', 'rejected', 'cancelled'
     this.userName = 'Student',
+    this.driverId,
+    this.driverName,
+    this.assignedCartId,
+    this.completedAt,
+    this.createdAt,
   }) : id = id.toString();
 
   final String id;
@@ -17,6 +22,11 @@ class RideRequest {
   final String time;
   String status;
   final String userName;
+  final String? driverId;
+  final String? driverName;
+  final String? assignedCartId;
+  final DateTime? completedAt;
+  final DateTime? createdAt;
 
   String get pickup => from;
   String get drop => to;
@@ -39,6 +49,13 @@ class RideRequest {
       created = DateTime.now();
     }
 
+    DateTime? completed;
+    if (map['completedAt'] is Timestamp) {
+      completed = (map['completedAt'] as Timestamp).toDate();
+    } else if (map['completedAt'] is String) {
+      completed = DateTime.tryParse(map['completedAt']);
+    }
+
     final diff = DateTime.now().difference(created);
     String timeLabel;
     if (diff.inSeconds < 60) {
@@ -58,6 +75,11 @@ class RideRequest {
       time: timeLabel,
       status: map['status'] as String? ?? 'pending',
       userName: map['userName'] as String? ?? 'Student',
+      driverId: map['driverId'] as String?,
+      driverName: map['driverName'] as String?,
+      assignedCartId: map['assignedCartId'] as String?,
+      completedAt: completed,
+      createdAt: created,
     );
   }
 
@@ -66,5 +88,10 @@ class RideRequest {
     'drop': to,
     'status': status,
     'userName': userName,
+    if (driverId != null) 'driverId': driverId,
+    if (driverName != null) 'driverName': driverName,
+    if (assignedCartId != null) 'assignedCartId': assignedCartId,
+    if (completedAt != null) 'completedAt': completedAt,
+    if (createdAt != null) 'createdAt': createdAt,
   };
 }

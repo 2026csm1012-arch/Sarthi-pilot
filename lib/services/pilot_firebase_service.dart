@@ -32,8 +32,6 @@ class PilotFirebaseService {
   ];
   static const String ridesCollection = 'rides';
 
-  CollectionReference<Map<String, dynamic>>? get _cartRef =>
-      _firestore?.collection(primaryCartCollection);
 
   CollectionReference<Map<String, dynamic>>? get _ridesRef =>
       _firestore?.collection(ridesCollection);
@@ -181,7 +179,13 @@ class PilotFirebaseService {
   }
 
   /// Accepts a student ride in Firestore and assigns it to this vehicle cart.
-  Future<void> acceptRideRequest(String rideId, String cartId, {String? cartName}) async {
+  Future<void> acceptRideRequest(
+    String rideId,
+    String cartId, {
+    String? cartName,
+    String? driverId,
+    String? driverName,
+  }) async {
     try {
       final data = <String, dynamic>{
         'status': 'accepted',
@@ -192,8 +196,14 @@ class PilotFirebaseService {
       if (cartName != null) {
         data['assignedCartName'] = cartName;
       }
+      if (driverId != null) {
+        data['driverId'] = driverId;
+      }
+      if (driverName != null) {
+        data['driverName'] = driverName;
+      }
       await _ridesRef?.doc(rideId).update(data);
-      debugPrint('Pilot accepted ride $rideId for cart $cartId ($cartName)');
+      debugPrint('Pilot accepted ride $rideId for cart $cartId ($cartName, driver $driverName)');
     } catch (e) {
       debugPrint('acceptRideRequest notice: $e');
     }
@@ -214,15 +224,45 @@ class PilotFirebaseService {
   }
 
   /// Updates status of an active trip (arriving, in_progress, completed).
-  Future<void> updateRideStatus(String rideId, String newStatus) async {
+  Future<void> updateRideStatus(
+    String rideId,
+    String newStatus, {
+    String? driverId,
+    String? driverName,
+  }) async {
     try {
-      await _ridesRef?.doc(rideId).update({
+      final updateData = <String, dynamic>{
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+      if (driverId != null) updateData['driverId'] = driverId;
+      if (driverName != null) updateData['driverName'] = driverName;
+      if (newStatus == 'completed') {
+        updateData['completedAt'] = FieldValue.serverTimestamp();
+      }
+      await _ridesRef?.doc(rideId).update(updateData);
     } catch (e) {
       debugPrint('updateRideStatus notice: $e');
     }
+  }
+
+  /// Streams ride history specifically associated with this driver ID.
+  Stream<List<RideRequest>> streamDriverRideHistory(String driverId) {
+    final ref = _ridesRef;
+    if (ref == null) return Stream.value([]);
+
+    return ref
+        .where('driverId', isEqualTo: driverId)
+        .snapshots()
+        .map((snapshot) {
+      final rides = snapshot.docs.map((doc) => RideRequest.fromDoc(doc)).toList();
+      rides.sort((a, b) {
+        final aDate = a.completedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.completedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+      return rides;
+    });
   }
 
   /// Generates a test student request directly in Firestore for end-to-end verification.

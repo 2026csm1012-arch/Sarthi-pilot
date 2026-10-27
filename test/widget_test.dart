@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sarthi_pilot/main.dart';
 
@@ -32,14 +33,45 @@ void main() {
     expect(find.text('OPERATOR DASHBOARD'), findsOneWidget);
     expect(find.text('Driver & Bus Control'), findsOneWidget);
 
+    // Verify Cart Active button is in EV Cart Tab
+    expect(find.text('OFFLINE • VEHICLE INACTIVE'), findsOneWidget);
+
+    // Switch to City Bus Scanner tab -> Cart Active toggle should NOT be visible
+    await tester.tap(find.text('City Bus Scanner'));
+    await tester.pumpAndSettle();
+    expect(find.text('OFFLINE • VEHICLE INACTIVE'), findsNothing);
+    expect(find.text('Scan Student Ticket'), findsOneWidget);
+
+    // Switch back to EV Cart Dispatch tab -> Cart Active toggle is visible
+    await tester.tap(find.text('EV Cart Dispatch'));
+    await tester.pumpAndSettle();
+    expect(find.text('OFFLINE • VEHICLE INACTIVE'), findsOneWidget);
+
     // Accept a ride request
     expect(find.text('Satlej Hostel → JC Bose Block'), findsOneWidget);
     await tester.tap(find.text('Accept').first);
     await tester.pumpAndSettle();
     expect(find.text('Satlej Hostel → JC Bose Block'), findsNothing);
 
-    // Sign Out
-    await tester.tap(find.byTooltip('Sign Out'));
+    // Open Driver Profile from title bar
+    await tester.tap(find.text('DRIVER'));
+    await tester.pumpAndSettle();
+
+    // Verify Profile elements: Driver Info, Assigned Cart, Ride History
+    expect(find.text('Driver Profile'), findsOneWidget);
+    expect(find.text('Assigned Cart'), findsOneWidget);
+    expect(find.text('Ride History'), findsOneWidget);
+
+    // Sign Out via Profile
+    final logoutButton = find.text('Log Out from Driver Portal');
+    await tester.scrollUntilVisible(logoutButton, 200);
+    await tester.drag(find.byType(ListView).last, const Offset(0, -150));
+    await tester.pumpAndSettle();
+    await tester.tap(logoutButton);
+    await tester.pumpAndSettle();
+
+    // Confirm dialog
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Log Out'));
     await tester.pumpAndSettle();
 
     // Returned to Login Screen
