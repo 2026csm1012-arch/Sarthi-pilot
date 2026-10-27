@@ -29,32 +29,48 @@ void main() {
     await tester.pumpAndSettle();
 
     // Now on Driver Screen
-    expect(find.text('IIT ROPAR TRANSIT'), findsOneWidget);
-    expect(find.text('OPERATOR DASHBOARD'), findsOneWidget);
-    expect(find.text('Driver & Bus Control'), findsOneWidget);
+    expect(find.text('SARTHI'), findsAtLeastNWidgets(1));
+    expect(find.text('IIT Ropar Transit'), findsOneWidget);
 
     // Verify Cart Active button is in EV Cart Tab
     expect(find.text('OFFLINE • VEHICLE INACTIVE'), findsOneWidget);
 
-    // Switch to City Bus Scanner tab -> Cart Active toggle should NOT be visible
-    await tester.tap(find.text('City Bus Scanner'));
+    // Switch to City Buses tab -> Cart Active toggle should NOT be visible
+    await tester.tap(find.text('City Buses'));
     await tester.pumpAndSettle();
     expect(find.text('OFFLINE • VEHICLE INACTIVE'), findsNothing);
     expect(find.text('Scan Student Ticket'), findsOneWidget);
 
-    // Switch back to EV Cart Dispatch tab -> Cart Active toggle is visible
-    await tester.tap(find.text('EV Cart Dispatch'));
+    // Switch back to EV Carts tab -> Cart Active toggle is visible
+    await tester.tap(find.text('EV Carts'));
     await tester.pumpAndSettle();
     expect(find.text('OFFLINE • VEHICLE INACTIVE'), findsOneWidget);
 
-    // Accept a ride request
+    // Verify no hardcoded requests initially
+    expect(find.text('No active ride requests'), findsOneWidget);
+
+    // Add a test ride request using '+ Add Test'
+    await tester.tap(find.text('+ Add Test'));
+    await tester.pumpAndSettle();
+
+    // Accept the ride request
     expect(find.text('Satlej Hostel → JC Bose Block'), findsOneWidget);
     await tester.tap(find.text('Accept').first);
     await tester.pumpAndSettle();
     expect(find.text('Satlej Hostel → JC Bose Block'), findsNothing);
 
-    // Open Driver Profile from title bar
-    await tester.tap(find.text('DRIVER'));
+    // Test Ride History button in App Bar next to Profile
+    await tester.tap(find.byKey(const ValueKey('app_bar_history_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ride History'), findsOneWidget);
+    expect(find.text('Past Trips & Logs'), findsOneWidget);
+
+    // Back from Ride History screen
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    // Open Driver Profile via Circle Profile photo in title bar
+    await tester.tap(find.byKey(const ValueKey('app_bar_profile_button')));
     await tester.pumpAndSettle();
 
     // Verify Profile elements: Driver Info, Assigned Cart, Ride History
@@ -89,8 +105,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    // Switch to City Bus Scanner
-    await tester.tap(find.text('City Bus Scanner'));
+    // Switch to City Buses tab
+    await tester.tap(find.text('City Buses'));
     await tester.pumpAndSettle();
 
     expect(find.text('Scan Student Ticket'), findsOneWidget);

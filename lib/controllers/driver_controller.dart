@@ -163,23 +163,6 @@ class DriverController extends ChangeNotifier {
       }
     });
 
-    // Seed initial student requests (for offline / test verification)
-    _requests.addAll([
-      RideRequest(
-        id: '1',
-        from: 'Satlej Hostel',
-        to: 'JC Bose Block',
-        time: 'Just now',
-        userName: 'Aman Sharma',
-      ),
-      RideRequest(
-        id: '2',
-        from: 'Beas Hostel',
-        to: 'Central Library',
-        time: '2 mins ago',
-        userName: 'Priya Patel',
-      ),
-    ]);
 
     // Stream real-time student ride requests dynamically from the database
     _ridesSub = _firebaseService.streamPendingRequests().listen((incoming) {
@@ -586,6 +569,16 @@ class DriverController extends ChangeNotifier {
   /// Injects a test ride request directly into the database for demonstration.
   void addTestRequest() {
     _firebaseService.createTestRideRequest();
+    if (!_firebaseService.isFirestoreAvailable) {
+      _requests.add(RideRequest(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        from: 'Satlej Hostel',
+        to: 'JC Bose Block',
+        time: 'Just now',
+        userName: 'Aman Sharma',
+      ));
+      notifyListeners();
+    }
   }
 
   /// Extracts ticket code from potential QR contents (plain, JSON, or URL).

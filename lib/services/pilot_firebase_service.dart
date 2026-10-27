@@ -22,6 +22,8 @@ class PilotFirebaseService {
     }
   }
 
+  bool get isFirestoreAvailable => _firestore != null;
+
   // Primary collection: "locations"
   static const String primaryCartCollection = 'locations';
   static const List<String> allCartCollections = [
