@@ -166,17 +166,15 @@ class DriverController extends ChangeNotifier {
 
     // Stream real-time student ride requests dynamically from the database
     _ridesSub = _firebaseService.streamPendingRequests().listen((incoming) {
-      if (incoming.isNotEmpty) {
-        // Check if a pending request disappeared (cancelled by student before accept)
-        for (final prev in _requests) {
-          if (!incoming.any((r) => r.id == prev.id) && _activeRide?.id != prev.id) {
-            _cancellationNotice = '${prev.userName} cancelled ride request (${prev.from} → ${prev.to}).';
-          }
+      // Check if a pending request disappeared (cancelled by student before accept)
+      for (final prev in _requests) {
+        if (!incoming.any((r) => r.id == prev.id) && _activeRide?.id != prev.id) {
+          _cancellationNotice = '${prev.userName} cancelled ride request (${prev.from} → ${prev.to}).';
         }
-        _requests.clear();
-        _requests.addAll(incoming);
-        notifyListeners();
       }
+      _requests.clear();
+      _requests.addAll(incoming);
+      notifyListeners();
     });
 
     // Seed initial ride history entries for driver display
