@@ -24,21 +24,33 @@ class DriverView extends StatefulWidget {
   State<DriverView> createState() => _DriverViewState();
 }
 
-class _DriverViewState extends State<DriverView> {
+class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
   late final DriverController _controller;
   final TextEditingController _ticketInputController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = DriverController(driverUser: widget.driverUser);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     _ticketInputController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.detached ||
+        state == AppLifecycleState.paused) {
+      // Set vehicle offline in Firebase when app closes or minimizes
+      _controller.setOfflineImmediate();
+    }
   }
 
   // Shows a minimal floating toast notification
@@ -70,33 +82,21 @@ class _DriverViewState extends State<DriverView> {
 
   void _onAcceptRequest(dynamic id) {
     _controller.acceptRequest(id);
-    _showToast('Ride accepted! Vehicle is ONLINE & GPS broadcast started.');
   }
 
   void _onRejectRequest(dynamic id) {
     _controller.rejectRequest(id);
-    _showToast('Ride request declined.');
-  }
-
-  void _onAddTestRequest() {
-    _controller.addTestRequest();
-    _showToast('New student hail request received!');
   }
 
   void _onSetOccupancy(String status) {
     _controller.setOccupancy(status);
-    _showToast('Capacity updated: $status');
   }
 
-  void _onVerifyTicket([String? codeToTest]) {
+  void _onVerifyTicket([String? codeToTest]) async {
     final code = codeToTest ?? _ticketInputController.text;
     if (code.trim().isEmpty) return;
 
-    _controller.verifyTicket(code);
-
-    if (_controller.scanResultType == 'success') {
-      _showToast('Passenger onboarded!');
-    }
+    await _controller.verifyTicket(code);
     _ticketInputController.clear();
   }
 
@@ -104,12 +104,10 @@ class _DriverViewState extends State<DriverView> {
     Navigator.of(context).push(
       MaterialPageRoute<String>(
         builder: (_) => QrScannerView(
+          currentBusInfo: _controller.currentRouteTitle,
+          getFeedbackMessage: () => _controller.scanResultText,
           onScanned: (code) async {
-            final valid = _controller.verifyTicket(code);
-            if (valid) {
-              _showToast('Passenger onboarded with ticket $code!');
-            }
-            return valid;
+            return await _controller.verifyTicket(code);
           },
           continuous: true,
         ),
@@ -440,26 +438,15 @@ class _DriverViewState extends State<DriverView> {
         const SizedBox(height: 16),
 
         // Pending Student Requests Section
-        Row(
+        const Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Pending Student Requests',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: Color(0xFF52525B),
-              ),
-            ),
-            GestureDetector(
-              onTap: _onAddTestRequest,
-              child: const Text(
-                '+ Add Test',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF059669),
-                ),
               ),
             ),
           ],
@@ -738,7 +725,6 @@ class _DriverViewState extends State<DriverView> {
                 ),
                 onPressed: () {
                   _controller.cancelActiveRide();
-                  _showToast('Active ride cleared.');
                 },
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
@@ -766,7 +752,6 @@ class _DriverViewState extends State<DriverView> {
             child: ElevatedButton.icon(
               onPressed: () {
                 _controller.advanceRideStatus();
-                _showToast('Ride status updated!');
               },
               icon: Icon(actionIcon, size: 18),
               label: Text(actionLabel),
@@ -921,8 +906,80 @@ class _DriverViewState extends State<DriverView> {
 
   // ================= 2. CITY BUS SCANNER PANEL =================
   Widget _buildBusPanel() {
+    final availableBuses = _controller.availableBuses;
+    final selectedBus = availableBuses
+        .where((b) => b['id'] == _controller.selectedBusId)
+        .firstOrNull;
+
+    final currentRouteTitle = selectedBus != null
+        ? '${selectedBus['route']} (${selectedBus['registrationNumber'] ?? 'PB-12'})'
+        : 'Campus Bus Transit';
+
     return Column(
       children: [
+        // Bus Route Selector Card
+        if (availableBuses.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAFAFA),
+              border: Border.all(color: const Color(0xFFE4E4E7)),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.directions_bus_rounded,
+                        size: 16, color: Color(0xFF059669)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Assigned Bus Route',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF71717A),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: availableBuses.any((b) => b['id'] == _controller.selectedBusId)
+                        ? _controller.selectedBusId
+                        : availableBuses.first['id'] as String?,
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down,
+                        size: 20, color: Color(0xFF71717A)),
+                    items: availableBuses.map((bus) {
+                      final route = bus['route'] as String? ?? 'Bus Route';
+                      final reg = bus['registrationNumber'] as String? ?? '';
+                      final dep = bus['departureTime'] as String? ?? '';
+                      return DropdownMenuItem<String>(
+                        value: bus['id'] as String?,
+                        child: Text(
+                          '$route ($reg · $dep)',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF18181B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) _controller.setSelectedBusId(val);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -958,9 +1015,10 @@ class _DriverViewState extends State<DriverView> {
                 ),
               ),
               const SizedBox(height: 2),
-              const Text(
-                'Verify onboarding for Rupnagar City Bus #104',
-                style: TextStyle(fontSize: 11, color: Color(0xFF71717A)),
+              Text(
+                'Verify & Confirm Onboarding for $currentRouteTitle',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF71717A)),
               ),
 
               const SizedBox(height: 16),
@@ -1022,7 +1080,7 @@ class _DriverViewState extends State<DriverView> {
                   letterSpacing: 1.2,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Enter ticket ID (e.g. TKT-8841)',
+                  hintText: 'Enter ticket ID (e.g. TKT-123456)',
                   hintStyle: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
@@ -1052,27 +1110,6 @@ class _DriverViewState extends State<DriverView> {
                   ),
                 ),
                 onSubmitted: (_) => _onVerifyTicket(),
-              ),
-
-              const SizedBox(height: 10),
-
-              // Quick Test helper chips
-              Wrap(
-                spacing: 8,
-                children: [
-                  _demoChip(
-                    'TKT-8841 (Valid)',
-                    () => _onVerifyTicket('TKT-8841'),
-                  ),
-                  _demoChip(
-                    'TKT-1042 (Valid)',
-                    () => _onVerifyTicket('TKT-1042'),
-                  ),
-                  _demoChip(
-                    'TKT-9999 (Invalid)',
-                    () => _onVerifyTicket('TKT-9999'),
-                  ),
-                ],
               ),
 
               const SizedBox(height: 12),
@@ -1138,7 +1175,7 @@ class _DriverViewState extends State<DriverView> {
         ),
         const SizedBox(height: 8),
 
-        if (_controller.tickets.isEmpty)
+        if (_controller.currentBusTickets.isEmpty)
           Container(
             padding: const EdgeInsets.all(14),
             width: double.infinity,
@@ -1155,7 +1192,7 @@ class _DriverViewState extends State<DriverView> {
             ),
           )
         else
-          ..._controller.tickets.map(
+          ..._controller.currentBusTickets.map(
             (t) => Container(
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1171,14 +1208,51 @@ class _DriverViewState extends State<DriverView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          t.id,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF18181B),
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              t.id,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF18181B),
+                              ),
+                            ),
+                            if (t.passengerName.isNotEmpty &&
+                                t.passengerName != 'Student') ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF4F4F5),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  t.passengerName,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF3F3F46),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
+                        if (t.pickup.isNotEmpty || t.drop.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              '${t.pickup} ➔ ${t.drop}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF047857),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         Text(
                           '${t.route} · ${t.busNo}',
                           style: const TextStyle(
@@ -1220,23 +1294,7 @@ class _DriverViewState extends State<DriverView> {
     );
   }
 
-  Widget _demoChip(String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFE4E4E7)),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 10, color: Color(0xFF71717A)),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildScanResultBox() {
     Color bgColor = const Color(0xFFFAFAFA);
