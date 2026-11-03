@@ -70,7 +70,12 @@ class _SplashScreenState extends State<SplashScreen> {
             (email.isNotEmpty
                 ? email.split('@').first.replaceAll('.', ' ').toUpperCase()
                 : 'DRIVER');
-        return DriverUser(uid: currentUser.uid, email: email, name: name);
+        return DriverUser(
+          uid: currentUser.uid,
+          email: email,
+          name: name,
+          driverId: DriverUser.formatHexId(currentUser.uid),
+        );
       }
     } catch (e) {
       debugPrint('Auto sign-in check notice: $e');

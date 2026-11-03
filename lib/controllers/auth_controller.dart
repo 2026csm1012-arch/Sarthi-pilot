@@ -64,10 +64,13 @@ class AuthController extends ChangeNotifier {
       if (auth == null) {
         // Safe development/test fallback when native Firebase app is not attached
         await Future<void>.delayed(const Duration(milliseconds: 400));
+        final hexId = DriverUser.formatHexId(
+            'DRV-TEST-${DateTime.now().millisecondsSinceEpoch}');
         _currentUser = DriverUser(
-          uid: 'DRV-TEST-${DateTime.now().millisecondsSinceEpoch}',
+          uid: hexId,
           email: cleanEmail,
           name: cleanEmail.split('@').first.replaceAll('.', ' ').toUpperCase(),
+          driverId: hexId,
         );
         return _currentUser;
       }
@@ -79,11 +82,13 @@ class AuthController extends ChangeNotifier {
 
       final user = userCredential.user;
       if (user != null) {
+        final hexId = DriverUser.formatHexId(user.uid);
         _currentUser = DriverUser(
           uid: user.uid,
           email: user.email ?? cleanEmail,
           name: user.displayName ??
               cleanEmail.split('@').first.replaceAll('.', ' ').toUpperCase(),
+          driverId: hexId,
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -116,10 +121,13 @@ class AuthController extends ChangeNotifier {
       if (auth == null) {
         // Safe development/test fallback when native Firebase app is not attached
         await Future<void>.delayed(const Duration(milliseconds: 400));
+        final hexId = DriverUser.formatHexId(
+            'DRV-TEST-${DateTime.now().millisecondsSinceEpoch}');
         _currentUser = DriverUser(
-          uid: 'DRV-TEST-${DateTime.now().millisecondsSinceEpoch}',
+          uid: hexId,
           email: cleanEmail,
           name: cleanEmail.split('@').first.replaceAll('.', ' ').toUpperCase(),
+          driverId: hexId,
         );
         return _currentUser;
       }
@@ -131,11 +139,13 @@ class AuthController extends ChangeNotifier {
 
       final user = userCredential.user;
       if (user != null) {
+        final hexId = DriverUser.formatHexId(user.uid);
         _currentUser = DriverUser(
           uid: user.uid,
           email: user.email ?? cleanEmail,
           name: user.displayName ??
               cleanEmail.split('@').first.replaceAll('.', ' ').toUpperCase(),
+          driverId: hexId,
         );
       }
     } on FirebaseAuthException catch (e) {

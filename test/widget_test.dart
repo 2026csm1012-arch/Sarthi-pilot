@@ -29,7 +29,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Now on Driver Screen
-    expect(find.text('SARTHI'), findsAtLeastNWidgets(1));
+    expect(find.text('PILOT'), findsAtLeastNWidgets(1));
     expect(find.text('IIT Ropar Transit'), findsOneWidget);
 
     // Verify Cart Active button is in EV Cart Tab
@@ -73,10 +73,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('app_bar_profile_button')));
     await tester.pumpAndSettle();
 
-    // Verify Profile elements: Driver Info, Assigned Cart, Ride History
+    // Verify Profile elements: Driver ID, Driver Mail only in profile card, Device Battery, Assigned Cart
     expect(find.text('Driver Profile'), findsOneWidget);
-    expect(find.text('Assigned Cart'), findsOneWidget);
-    expect(find.text('Ride History'), findsOneWidget);
+    expect(find.text('DRIVER ID'), findsOneWidget);
+    expect(find.text('driver@iitrpr.ac.in'), findsOneWidget);
+    expect(find.text('Assigned Cart & Fleet'), findsOneWidget);
+    expect(find.text('Mobile Device & Telemetry'), findsOneWidget);
+    expect(find.text('Device Battery'), findsOneWidget);
+    // Verify Portal Shortcuts & Tools is removed from profile
+    expect(find.text('Portal Shortcuts & Tools'), findsNothing);
 
     // Sign Out via Profile
     final logoutButton = find.text('Log Out from Driver Portal');

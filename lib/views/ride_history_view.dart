@@ -93,9 +93,7 @@ class RideHistoryView extends StatelessWidget {
                       Container(height: 36, width: 1, color: const Color(0xFFE4E4E7)),
                       _buildMetric(
                         label: 'Driver ID',
-                        value: driverUser.uid.length > 8
-                            ? driverUser.uid.substring(0, 8)
-                            : driverUser.uid,
+                        value: driverUser.driverId,
                         icon: Icons.badge_outlined,
                         color: const Color(0xFF6366F1),
                       ),
@@ -118,7 +116,7 @@ class RideHistoryView extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Tied to ${driverUser.uid}',
+                      'Driver ID: #${driverUser.driverId}',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Color(0xFF71717A),

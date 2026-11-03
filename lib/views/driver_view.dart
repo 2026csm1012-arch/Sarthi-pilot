@@ -11,9 +11,10 @@ class DriverView extends StatefulWidget {
   const DriverView({
     super.key,
     this.driverUser = const DriverUser(
-      uid: 'DEMO-DRIVER-01',
+      uid: '4A8F10CD',
       email: 'driver@iitrpr.ac.in',
       name: 'DRIVER',
+      driverId: '4A8F10CD',
     ),
   });
 
@@ -807,13 +808,27 @@ class _DriverViewState extends State<DriverView> {
                   ),
                 ],
               ),
-              Text(
-                'Battery: ${_controller.battery}%',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF52525B),
-                ),
+              Row(
+                children: [
+                  Icon(
+                    _controller.isCharging
+                        ? Icons.battery_charging_full_rounded
+                        : Icons.battery_std_rounded,
+                    size: 14,
+                    color: _controller.battery > 20
+                        ? const Color(0xFF059669)
+                        : const Color(0xFFDC2626),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Device Battery: ${_controller.battery}%',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF52525B),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

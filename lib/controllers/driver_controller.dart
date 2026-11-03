@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sarthi_pilot/models/bus_ticket.dart';
 import 'package:sarthi_pilot/models/ride_request.dart';
@@ -97,8 +98,13 @@ class DriverController extends ChangeNotifier {
   double _heading = 45.0;
   double get heading => _heading;
 
-  final int _battery = 95;
+  // Real mobile device battery state
+  final Battery _batteryPlugin = Battery();
+  StreamSubscription<BatteryState>? _batteryStateSub;
+  int _battery = 100;
   int get battery => _battery;
+  bool _isCharging = false;
+  bool get isCharging => _isCharging;
 
   String _currentWaypointName = 'Satluj Hostel';
   String get currentWaypointName => _currentWaypointName;
@@ -177,64 +183,18 @@ class DriverController extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Seed initial ride history entries for driver display
-    _rideHistory.addAll([
-      RideRequest(
-        id: 'RIDE-1049',
-        from: 'Satluj Hostel',
-        to: 'Nalanda Library Junction',
-        time: '35m ago',
-        status: 'completed',
-        userName: 'Aman Sharma',
-        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
-        driverName: driverUser?.name ?? 'DRIVER',
-        assignedCartId: 'cart-1',
-        completedAt: DateTime.now().subtract(const Duration(minutes: 35)),
-      ),
-      RideRequest(
-        id: 'RIDE-1038',
-        from: 'Chenab Hostel',
-        to: 'Main Gate Campus Entrance',
-        time: '2h ago',
-        status: 'completed',
-        userName: 'Priya Patel',
-        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
-        driverName: driverUser?.name ?? 'DRIVER',
-        assignedCartId: 'cart-1',
-        completedAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      RideRequest(
-        id: 'RIDE-1012',
-        from: 'Annapurna Mess',
-        to: 'J.C. Bose Block',
-        time: 'Yesterday',
-        status: 'completed',
-        userName: 'Rahul Verma',
-        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
-        driverName: driverUser?.name ?? 'DRIVER',
-        assignedCartId: 'cart-2',
-        completedAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-    ]);
+    // Initialize mobile device battery reading and event listener
+    _initDeviceBattery();
 
-    // Stream real-time completed ride history from Firebase for this driver
-    if (driverUser != null) {
-      _historySub = _firebaseService
-          .streamDriverRideHistory(driverUser!.uid)
-          .listen((liveHistory) {
-        if (liveHistory.isNotEmpty) {
-          for (final item in liveHistory) {
-            final idx = _rideHistory.indexWhere((r) => r.id == item.id);
-            if (idx != -1) {
-              _rideHistory[idx] = item;
-            } else {
-              _rideHistory.insert(0, item);
-            }
-          }
-          notifyListeners();
-        }
-      });
-    }
+    // Stream real-time ride history dynamically from Firebase for this driver
+    final effectiveDriverId = driverUser?.driverId ?? '4A8F10CD';
+    _historySub = _firebaseService
+        .streamDriverRideHistory(effectiveDriverId)
+        .listen((liveHistory) {
+      _rideHistory.clear();
+      _rideHistory.addAll(liveHistory);
+      notifyListeners();
+    });
 
     // Probe hardware GPS for initial phone location
     _checkInitialDeviceLocation();
@@ -257,6 +217,43 @@ class DriverController extends ChangeNotifier {
     } catch (e) {
       debugPrint('DriverController checkInitialDeviceLocation notice: $e');
     }
+  }
+
+  /// Initializes device battery monitoring from the mobile hardware.
+  Future<void> _initDeviceBattery() async {
+    try {
+      final level = await _batteryPlugin.batteryLevel;
+      _battery = level.clamp(0, 100);
+      final state = await _batteryPlugin.batteryState;
+      _isCharging = state == BatteryState.charging || state == BatteryState.full;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Device battery read notice: $e');
+    }
+
+    try {
+      _batteryStateSub = _batteryPlugin.onBatteryStateChanged.listen((state) async {
+        _isCharging = state == BatteryState.charging || state == BatteryState.full;
+        try {
+          final level = await _batteryPlugin.batteryLevel;
+          _battery = level.clamp(0, 100);
+        } catch (_) {}
+        notifyListeners();
+      });
+    } catch (e) {
+      debugPrint('Battery state stream notice: $e');
+    }
+  }
+
+  /// Manually reads and updates the latest mobile device battery level.
+  Future<void> refreshDeviceBattery() async {
+    try {
+      final level = await _batteryPlugin.batteryLevel;
+      _battery = level.clamp(0, 100);
+      final state = await _batteryPlugin.batteryState;
+      _isCharging = state == BatteryState.charging || state == BatteryState.full;
+      notifyListeners();
+    } catch (_) {}
   }
 
   /// Switches mode between 'cart' and 'bus'.
@@ -432,6 +429,9 @@ class DriverController extends ChangeNotifier {
         _currentWaypointName = wp['name'] as String;
       }
 
+      // Periodically refresh device battery stats
+      refreshDeviceBattery();
+
       _syncLocationToFirebase();
       notifyListeners();
     });
@@ -451,7 +451,7 @@ class DriverController extends ChangeNotifier {
         req.id,
         _selectedCart,
         cartName: selectedCartName,
-        driverId: driverUser?.uid,
+        driverId: driverUser?.driverId,
         driverName: driverUser?.name,
       );
 
@@ -511,7 +511,7 @@ class DriverController extends ChangeNotifier {
       _firebaseService.updateRideStatus(
         _activeRide!.id,
         'arriving',
-        driverId: driverUser?.uid,
+        driverId: driverUser?.driverId,
         driverName: driverUser?.name,
       );
     } else if (_activeRide!.status == 'arriving') {
@@ -519,7 +519,7 @@ class DriverController extends ChangeNotifier {
       _firebaseService.updateRideStatus(
         _activeRide!.id,
         'in_progress',
-        driverId: driverUser?.uid,
+        driverId: driverUser?.driverId,
         driverName: driverUser?.name,
       );
     } else if (_activeRide!.status == 'in_progress') {
@@ -528,7 +528,7 @@ class DriverController extends ChangeNotifier {
       _firebaseService.updateRideStatus(
         completedTrip.id,
         'completed',
-        driverId: driverUser?.uid,
+        driverId: driverUser?.driverId,
         driverName: driverUser?.name,
       );
       final historyEntry = RideRequest(
@@ -538,7 +538,7 @@ class DriverController extends ChangeNotifier {
         time: 'Just now',
         status: 'completed',
         userName: completedTrip.userName,
-        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
+        driverId: driverUser?.driverId ?? '4A8F10CD',
         driverName: driverUser?.name ?? 'DRIVER',
         assignedCartId: _selectedCart,
         completedAt: DateTime.now(),
@@ -660,6 +660,7 @@ class DriverController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _batteryStateSub?.cancel();
     _cartsSub?.cancel();
     _ridesSub?.cancel();
     _activeRideSub?.cancel();
