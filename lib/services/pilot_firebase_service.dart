@@ -446,8 +446,8 @@ class PilotFirebaseService {
     });
   }
 
-  /// Streams ride history from Firestore.
-  Stream<List<RideRequest>> streamDriverRideHistory([String? driverId]) {
+  /// Streams ride history from Firestore filtered for the given driver ID.
+  Stream<List<RideRequest>> streamDriverRideHistory([String? driverId, String? uid]) {
     final ref = _ridesRef;
     if (ref == null) return Stream.value([]);
 
@@ -455,10 +455,16 @@ class PilotFirebaseService {
       final rides = snapshot.docs
           .map((doc) => RideRequest.fromDoc(doc))
           .where((r) {
-            final isFinished = r.status == 'completed' || r.status == 'cancelled' || r.status == 'rejected';
+            final isFinished = r.status == 'completed' ||
+                r.status == 'cancelled' ||
+                r.status == 'rejected';
             if (!isFinished) return false;
-            if (driverId != null && driverId.isNotEmpty && !driverId.startsWith('DEMO')) {
-              return r.driverId == driverId || r.driverId == null || r.driverId!.isEmpty;
+
+            // When a driver ID is provided, strictly show history for that given ID
+            if (driverId != null && driverId.isNotEmpty) {
+              final match = r.driverId == driverId ||
+                  (uid != null && uid.isNotEmpty && r.driverId == uid);
+              return match;
             }
             return true;
           })

@@ -303,7 +303,7 @@ class DriverController extends ChangeNotifier {
 
     // Stream real-time completed ride history from Firebase
     _historySub = _firebaseService
-        .streamDriverRideHistory(effectiveDriverId)
+        .streamDriverRideHistory(effectiveDriverId, driverUser?.uid)
         .listen((liveHistory) {
           _rideHistory.clear();
           _rideHistory.addAll(liveHistory);
@@ -607,8 +607,8 @@ class DriverController extends ChangeNotifier {
         req.id,
         _selectedCart,
         cartName: selectedCartName,
-        driverId: driverUser?.driverId,
-        driverName: driverUser?.name,
+        driverId: driverUser?.driverId ?? '4A8F10CD',
+        driverName: driverUser?.name ?? 'DRIVER',
       );
 
       // Listen for passenger cancellation or status changes in real-time
@@ -674,16 +674,16 @@ class DriverController extends ChangeNotifier {
       _firebaseService.updateRideStatus(
         _activeRide!.id,
         'arriving',
-        driverId: driverUser?.driverId,
-        driverName: driverUser?.name,
+        driverId: driverUser?.driverId ?? '4A8F10CD',
+        driverName: driverUser?.name ?? 'DRIVER',
       );
     } else if (_activeRide!.status == 'arriving') {
       _activeRide!.status = 'in_progress';
       _firebaseService.updateRideStatus(
         _activeRide!.id,
         'in_progress',
-        driverId: driverUser?.driverId,
-        driverName: driverUser?.name,
+        driverId: driverUser?.driverId ?? '4A8F10CD',
+        driverName: driverUser?.name ?? 'DRIVER',
       );
     } else if (_activeRide!.status == 'in_progress') {
       _activeRide!.status = 'completed';
@@ -691,8 +691,8 @@ class DriverController extends ChangeNotifier {
       _firebaseService.updateRideStatus(
         completedTrip.id,
         'completed',
-        driverId: driverUser?.driverId,
-        driverName: driverUser?.name,
+        driverId: driverUser?.driverId ?? '4A8F10CD',
+        driverName: driverUser?.name ?? 'DRIVER',
       );
       final historyEntry = RideRequest(
         id: completedTrip.id,

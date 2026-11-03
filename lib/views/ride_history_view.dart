@@ -4,8 +4,9 @@ import 'package:sarthi_pilot/models/bus_ticket.dart';
 import 'package:sarthi_pilot/models/driver_user.dart';
 import 'package:sarthi_pilot/models/ride_request.dart';
 
-/// Activity and Trip History view displaying live completed EV cart rides
-/// and verified bus tickets directly from the Firebase Firestore database.
+/// Activity and Trip History view strictly tailored to the driver's role:
+/// EV Cart pilots see only EV Cart ride history.
+/// City Bus operators see only Bus passenger tickets and scans.
 class RideHistoryView extends StatelessWidget {
   const RideHistoryView({
     super.key,
@@ -18,204 +19,221 @@ class RideHistoryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) {
-          final history = controller.rideHistory;
-          final completedCount = history
-              .where((r) => r.status == 'completed')
-              .length;
-          final tickets = controller.tickets;
-          final verifiedTickets = tickets.where((t) => t.isConfirmed).toList();
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final isBus = controller.isBusMode || driverUser.isBusDriver;
+        final history = controller.rideHistory;
+        final completedCount = history
+            .where((r) => r.status == 'completed')
+            .length;
+        final tickets = controller.tickets;
+        final verifiedTickets = tickets.where((t) => t.isConfirmed).toList();
 
-          return Scaffold(
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
             backgroundColor: Colors.white,
-            appBar: AppBar(
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              leading: const BackButton(color: Color(0xFF18181B)),
-              titleSpacing: 0,
-              title: const Text(
-                'Driver History & Logs',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF18181B),
-                ),
-              ),
-              bottom: TabBar(
-                indicatorColor: const Color(0xFF059669),
-                labelColor: const Color(0xFF059669),
-                unselectedLabelColor: const Color(0xFF71717A),
-                indicatorWeight: 2.5,
-                labelStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                unselectedLabelStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-                tabs: [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.airport_shuttle, size: 16),
-                        const SizedBox(width: 6),
-                        Text('EV Carts (${history.length})'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.confirmation_number_outlined,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-                        Text('Bus Tickets (${tickets.length})'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            body: TabBarView(
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            leading: const BackButton(color: Color(0xFF18181B)),
+            titleSpacing: 0,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // TAB 1: EV Cart Rides
-                SafeArea(
-                  child: ListView(
-                    padding: const EdgeInsets.all(20),
-                    children: [
-                      _buildMetricRow(
-                        metrics: [
-                          _buildMetric(
-                            label: 'Total Trips',
-                            value: '${history.length}',
-                            icon: Icons.route_rounded,
-                            color: const Color(0xFF059669),
-                          ),
-                          _buildMetric(
-                            label: 'Completed',
-                            value: '$completedCount',
-                            icon: Icons.check_circle_rounded,
-                            color: const Color(0xFF16A34A),
-                          ),
-                          _buildMetric(
-                            label: 'Driver ID',
-                            value: driverUser.driverId,
-                            icon: Icons.badge_outlined,
-                            color: const Color(0xFF6366F1),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Past Trips & Logs',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF18181B),
-                            ),
-                          ),
-                          Text(
-                            'Completed',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF71717A),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (history.isEmpty)
-                        _buildEmptyState(
-                          icon: Icons.receipt_long_outlined,
-                          title: 'No Ride History Recorded',
-                          subtitle: 'Trips accepted and completed by you will appear here automatically.',
-                        )
-                      else
-                        ...history.map(_buildRideHistoryCard),
-                    ],
+                Text(
+                  isBus ? 'Bus Passenger History' : 'EV Cart Ride History',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF18181B),
                   ),
                 ),
-
-                // TAB 2: Scanned Bus Tickets
-                SafeArea(
-                  child: ListView(
-                    padding: const EdgeInsets.all(20),
-                    children: [
-                      _buildMetricRow(
-                        metrics: [
-                          _buildMetric(
-                            label: 'Total Scanned',
-                            value: '${verifiedTickets.length}',
-                            icon: Icons.qr_code_scanner_rounded,
-                            color: const Color(0xFF059669),
-                          ),
-                          _buildMetric(
-                            label: 'Active Tickets',
-                            value: '${tickets.length}',
-                            icon: Icons.confirmation_number_outlined,
-                            color: const Color(0xFF2563EB),
-                          ),
-                          _buildMetric(
-                            label: 'Bus Status',
-                            value: controller.occupancy,
-                            icon: Icons.event_seat_rounded,
-                            color: controller.occupancy == 'Full'
-                                ? Colors.redAccent
-                                : const Color(0xFF16A34A),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Passenger Manifest & Scans',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF18181B),
-                            ),
-                          ),
-                          Text(
-                            'Verified',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF71717A),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (tickets.isEmpty)
-                        _buildEmptyState(
-                          icon: Icons.confirmation_number_outlined,
-                          title: 'No Bus Tickets Recorded Yet',
-                          subtitle: 'Tickets booked by students and confirmed via camera scan will appear here in real time.',
-                        )
-                      else
-                        ...tickets.map(_buildBusTicketCard),
-                    ],
+                const SizedBox(height: 1),
+                Text(
+                  isBus
+                      ? 'Operator ID: #${driverUser.driverId} · Bus Service'
+                      : 'Pilot ID: #${driverUser.driverId} · EV Cart Service',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
                   ),
                 ),
               ],
             ),
-          );
-        },
-      ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Container(color: const Color(0xFFE4E4E7), height: 1),
+            ),
+          ),
+          body: SafeArea(
+            child: isBus
+                ? _buildBusHistoryView(context, tickets, verifiedTickets)
+                : _buildCartHistoryView(context, history, completedCount),
+          ),
+        );
+      },
+    );
+  }
+
+  // ================= EV CART RIDE HISTORY VIEW =================
+  Widget _buildCartHistoryView(
+    BuildContext context,
+    List<RideRequest> history,
+    int completedCount,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        _buildMetricRow(
+          metrics: [
+            _buildMetric(
+              label: 'Total Trips',
+              value: '${history.length}',
+              icon: Icons.route_rounded,
+              color: const Color(0xFF059669),
+            ),
+            _buildMetric(
+              label: 'Completed',
+              value: '$completedCount',
+              icon: Icons.check_circle_rounded,
+              color: const Color(0xFF16A34A),
+            ),
+            _buildMetric(
+              label: 'Driver ID',
+              value: driverUser.driverId,
+              icon: Icons.badge_outlined,
+              color: const Color(0xFF6366F1),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Past Trips & Logs',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF18181B),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 3,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFA7F3D0)),
+              ),
+              child: Text(
+                'Driver ID: #${driverUser.driverId}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'monospace',
+                  color: Color(0xFF047857),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (history.isEmpty)
+          _buildEmptyState(
+            icon: Icons.receipt_long_outlined,
+            title: 'No Ride History for ID #${driverUser.driverId}',
+            subtitle:
+                'Trips accepted and completed by Driver ID #${driverUser.driverId} will appear here.',
+          )
+        else
+          ...history.map(_buildRideHistoryCard),
+      ],
+    );
+  }
+
+  // ================= BUS PASSENGER TICKET HISTORY VIEW =================
+  Widget _buildBusHistoryView(
+    BuildContext context,
+    List<BusTicket> tickets,
+    List<BusTicket> verifiedTickets,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        _buildMetricRow(
+          metrics: [
+            _buildMetric(
+              label: 'Total Scanned',
+              value: '${verifiedTickets.length}',
+              icon: Icons.qr_code_scanner_rounded,
+              color: const Color(0xFF059669),
+            ),
+            _buildMetric(
+              label: 'Active Tickets',
+              value: '${tickets.length}',
+              icon: Icons.confirmation_number_outlined,
+              color: const Color(0xFF2563EB),
+            ),
+            _buildMetric(
+              label: 'Bus Status',
+              value: controller.occupancy,
+              icon: Icons.event_seat_rounded,
+              color: controller.occupancy == 'Full'
+                  ? Colors.redAccent
+                  : const Color(0xFF16A34A),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Passenger Manifest & Scans',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF18181B),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 3,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Text(
+                'Operator ID: #${driverUser.driverId}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'monospace',
+                  color: Color(0xFF1D4ED8),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (tickets.isEmpty)
+          _buildEmptyState(
+            icon: Icons.confirmation_number_outlined,
+            title: 'No Bus Tickets Recorded Yet',
+            subtitle:
+                'Tickets booked by students and confirmed via camera scan will appear here in real time.',
+          )
+        else
+          ...tickets.map(_buildBusTicketCard),
+      ],
     );
   }
 
@@ -460,6 +478,24 @@ class RideHistoryView extends StatelessWidget {
                       color: Color(0xFF52525B),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F4F5),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFFE4E4E7)),
+                    ),
+                    child: Text(
+                      'ID: #${ride.driverId ?? driverUser.driverId}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'monospace',
+                        color: Color(0xFF52525B),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               Text(
@@ -528,58 +564,61 @@ class RideHistoryView extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isConfirmed
                       ? const Color(0xFFDCFCE7)
-                      : const Color(0xFFDBEAFE),
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  isConfirmed ? 'VERIFIED' : 'VALID',
+                  isConfirmed ? 'CONFIRMED' : 'ACTIVE',
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
                     color: isConfirmed
                         ? const Color(0xFF15803D)
-                        : const Color(0xFF1D4ED8),
+                        : const Color(0xFF64748B),
                     letterSpacing: 0.5,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            ticket.route,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF27272A),
-            ),
-          ),
-          if (ticket.pickup.isNotEmpty || ticket.drop.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(
-                  Icons.directions_outlined,
-                  size: 14,
-                  color: Color(0xFF71717A),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    '${ticket.pickup} ➔ ${ticket.drop}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF52525B),
-                    ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(
+                Icons.directions_bus_rounded,
+                size: 15,
+                color: Color(0xFF2563EB),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  ticket.route,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF18181B),
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          if (ticket.pickup.isNotEmpty || ticket.drop.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 23),
+              child: Text(
+                '${ticket.pickup.isNotEmpty ? ticket.pickup : "Campus"} ➔ ${ticket.drop.isNotEmpty ? ticket.drop : "Destination"}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF059669),
+                ),
+              ),
             ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           const Divider(color: Color(0xFFF4F4F5), height: 1),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -602,9 +641,7 @@ class RideHistoryView extends StatelessWidget {
                 ],
               ),
               Text(
-                ticket.verifiedAt != null
-                    ? 'Confirmed: ${ticket.verifiedAt!.hour.toString().padLeft(2, '0')}:${ticket.verifiedAt!.minute.toString().padLeft(2, '0')}'
-                    : (ticket.busNo.isNotEmpty ? ticket.busNo : ticket.time),
+                '${ticket.busNo} · ${ticket.time}',
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,

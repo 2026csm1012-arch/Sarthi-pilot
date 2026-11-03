@@ -39,10 +39,11 @@ void main() {
     // Verify no hardcoded requests initially
     expect(find.text('No active ride requests'), findsOneWidget);
 
-    // Test Ride History button in App Bar next to Profile
+    // Test Ride History button in App Bar: EV Cart Driver sees ONLY EV Cart Ride History
     await tester.tap(find.byKey(const ValueKey('app_bar_history_button')));
     await tester.pumpAndSettle();
-    expect(find.text('Driver History & Logs'), findsOneWidget);
+    expect(find.text('EV Cart Ride History'), findsOneWidget);
+    expect(find.text('Bus Passenger History'), findsNothing);
 
     // Back from Ride History screen
     await tester.tap(find.byType(BackButton));
@@ -95,6 +96,16 @@ void main() {
     expect(find.text('Open Camera QR Scanner'), findsOneWidget);
     expect(find.text('Ready to scan incoming passengers...'), findsOneWidget);
 
+    // Test Ride History button in App Bar: Bus Driver sees ONLY Bus Passenger History
+    await tester.tap(find.byKey(const ValueKey('app_bar_history_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Bus Passenger History'), findsOneWidget);
+    expect(find.text('EV Cart Ride History'), findsNothing);
+
+    // Back from Ride History screen
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
     // Test valid ticket TKT-8841 using text input
     await tester.enterText(find.byType(TextField), 'TKT-8841');
     await tester.tap(find.text('Verify & Check-In Passenger'));
@@ -128,4 +139,3 @@ void main() {
     expect(find.text('Sign In'), findsOneWidget);
   });
 }
-
