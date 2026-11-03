@@ -32,18 +32,8 @@ void main() {
     expect(find.text('PILOT'), findsAtLeastNWidgets(1));
     expect(find.text('IIT Ropar Transit'), findsOneWidget);
 
-    // Verify Cart Active button is in EV Cart Tab
-    expect(find.text('OFFLINE • VEHICLE INACTIVE'), findsOneWidget);
-
-    // Switch to City Buses tab -> Cart Active toggle should NOT be visible
-    await tester.tap(find.text('City Buses'));
-    await tester.pumpAndSettle();
-    expect(find.text('OFFLINE • VEHICLE INACTIVE'), findsNothing);
-    expect(find.text('Scan Student Ticket'), findsOneWidget);
-
-    // Switch back to EV Carts tab -> Cart Active toggle is visible
-    await tester.tap(find.text('EV Carts'));
-    await tester.pumpAndSettle();
+    // Verify EV Cart role is active based on driver@iitrpr.ac.in
+    expect(find.text('EV Cart Campus Transit'), findsOneWidget);
     expect(find.text('OFFLINE • VEHICLE INACTIVE'), findsOneWidget);
 
     // Verify no hardcoded requests initially
@@ -103,17 +93,15 @@ void main() {
     await tester.pumpWidget(const SarthiPilotApp());
     await tester.pumpAndSettle();
 
-    // Quick login
-    await tester.tap(find.text('Auto-fill demo credentials'));
+    // Login with Bus Operator credentials (role fixed to bus via email)
+    await tester.tap(find.text('Auto-fill Bus Operator'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sign In'));
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    // Switch to City Buses tab
-    await tester.tap(find.text('City Buses'));
-    await tester.pumpAndSettle();
-
+    // Directly in City Bus panel
+    expect(find.text('City Bus Transit Service'), findsOneWidget);
     expect(find.text('Scan Student Ticket'), findsOneWidget);
     expect(find.text('Open Camera QR Scanner'), findsOneWidget);
     expect(find.text('Ready to scan incoming passengers...'), findsOneWidget);

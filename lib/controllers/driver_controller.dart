@@ -18,6 +18,7 @@ class DriverController extends ChangeNotifier {
     DeviceLocationService? locationService,
   })  : _firebaseService = firebaseService ?? PilotFirebaseService(),
         _locationService = locationService ?? DeviceLocationService() {
+    _driverMode = driverUser?.role ?? 'cart';
     _initData();
   }
 
@@ -32,9 +33,11 @@ class DriverController extends ChangeNotifier {
   String get vehicleStatusText =>
       _isOnline ? 'Online · Vehicle Active' : 'Offline · Vehicle Inactive';
 
-  // Active mode: 'cart' or 'bus'
-  String _driverMode = 'cart';
-  String get driverMode => _driverMode;
+  // Active mode: strictly fixed by driver email ('cart' or 'bus')
+  late String _driverMode;
+  String get driverMode => driverUser?.role ?? _driverMode;
+  bool get isBusMode => driverMode == 'bus';
+  bool get isCartMode => driverMode == 'cart';
 
   // Selected cart in EV Cart mode
   String _selectedCart = 'cart-1';
@@ -256,8 +259,13 @@ class DriverController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Switches mode between 'cart' and 'bus'.
+  /// Switches mode between 'cart' and 'bus' if not strictly bound to driver email.
   void setDriverMode(String mode) {
+    if (driverUser != null) {
+      // Role is fixed strictly by driver email. Cannot switch.
+      _driverMode = driverUser!.role;
+      return;
+    }
     if (_driverMode != mode) {
       _driverMode = mode;
       notifyListeners();

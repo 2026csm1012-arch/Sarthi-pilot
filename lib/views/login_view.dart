@@ -46,6 +46,13 @@ class _LoginViewState extends State<LoginView> {
     });
   }
 
+  void _fillBusDemoCredentials() {
+    setState(() {
+      _emailController.text = 'bus.driver@iitrpr.ac.in';
+      _passwordController.text = 'bus123456';
+    });
+  }
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -313,43 +320,80 @@ class _LoginViewState extends State<LoginView> {
 
                   const SizedBox(height: 12),
 
-                  // Quick Demo Credentials Chip
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: InkWell(
-                      onTap: _fillDemoCredentials,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF4F4F5),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFE4E4E7)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.bolt,
-                              size: 14,
-                              color: Color(0xFF059669),
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Auto-fill demo credentials',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                  // Quick Demo Credentials Chips
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      InkWell(
+                        onTap: _fillDemoCredentials,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4F4F5),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFE4E4E7)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.bolt,
+                                size: 14,
                                 color: Color(0xFF059669),
                               ),
-                            ),
-                          ],
+                              SizedBox(width: 4),
+                              Text(
+                                'Auto-fill demo credentials',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF059669),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                      InkWell(
+                        onTap: _fillBusDemoCredentials,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.directions_bus_rounded,
+                                size: 14,
+                                color: Color(0xFF2563EB),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Auto-fill Bus Operator',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2563EB),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 24),

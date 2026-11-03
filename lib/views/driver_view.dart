@@ -261,32 +261,105 @@ class _DriverViewState extends State<DriverView> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               children: [
-                // Mode Selector: EV Carts vs City Buses
-                Row(
-                  children: [
-                    Expanded(
-                      child: _modeButton(
-                        title: 'EV Carts',
-                        icon: Icons.electric_rickshaw_rounded,
-                        isSelected: _controller.driverMode == 'cart',
-                        onTap: () => _controller.setDriverMode('cart'),
-                      ),
+                // Assigned Service Role Banner (Fixed strictly by driver email)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _controller.isBusMode
+                        ? const Color(0xFFEFF6FF)
+                        : const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _controller.isBusMode
+                          ? const Color(0xFFBFDBFE)
+                          : const Color(0xFFA7F3D0),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _modeButton(
-                        title: 'City Buses',
-                        icon: Icons.directions_bus_rounded,
-                        isSelected: _controller.driverMode == 'bus',
-                        onTap: () => _controller.setDriverMode('bus'),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: _controller.isBusMode
+                              ? const Color(0xFFDBEAFE)
+                              : const Color(0xFFD1FAE5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _controller.isBusMode
+                              ? Icons.directions_bus_rounded
+                              : Icons.electric_rickshaw_rounded,
+                          color: _controller.isBusMode
+                              ? const Color(0xFF1D4ED8)
+                              : const Color(0xFF047857),
+                          size: 18,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _controller.isBusMode
+                                  ? 'City Bus Transit Service'
+                                  : 'EV Cart Campus Transit',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _controller.isBusMode
+                                    ? const Color(0xFF1E3A8A)
+                                    : const Color(0xFF064E3B),
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              _controller.isBusMode
+                                  ? 'Role bound to ${widget.driverUser.email}'
+                                  : 'Role bound to ${widget.driverUser.email}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: _controller.isBusMode
+                                    ? const Color(0xFF3B82F6)
+                                    : const Color(0xFF059669),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.85),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: _controller.isBusMode
+                                ? const Color(0xFF93C5FD)
+                                : const Color(0xFF86EFAC),
+                          ),
+                        ),
+                        child: Text(
+                          _controller.isBusMode ? 'BUS MODE' : 'EV CART',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                            color: _controller.isBusMode
+                                ? const Color(0xFF1D4ED8)
+                                : const Color(0xFF047857),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // Active Panel Body
+                // Active Panel Body (EV Cart or City Bus strictly based on email role)
                 if (_controller.driverMode == 'cart')
                   _buildCartPanel()
                 else
@@ -338,55 +411,6 @@ class _DriverViewState extends State<DriverView> {
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
                 color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Mode button toggle (EV Carts vs City Buses)
-  Widget _modeButton({
-    required String title,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFECFDF5) : const Color(0xFFF8FAFC),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF059669) : Colors.transparent,
-            width: isSelected ? 1.6 : 1,
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: isSelected
-                  ? const Color(0xFF047857)
-                  : const Color(0xFF64748B),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                color: isSelected
-                    ? const Color(0xFF047857)
-                    : const Color(0xFF334155),
               ),
             ),
           ],

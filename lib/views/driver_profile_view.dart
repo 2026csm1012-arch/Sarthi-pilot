@@ -474,8 +474,12 @@ class DriverProfileView extends StatelessWidget {
 
                 // 3. Assigned Vehicle Section
                 _buildSectionHeader(
-                  title: 'Assigned Cart & Fleet',
-                  icon: Icons.electric_rickshaw_rounded,
+                  title: controller.isBusMode
+                      ? 'Assigned Bus & Fleet'
+                      : 'Assigned Cart & Fleet',
+                  icon: controller.isBusMode
+                      ? Icons.directions_bus_rounded
+                      : Icons.electric_rickshaw_rounded,
                 ),
                 const SizedBox(height: 8),
                 Container(
@@ -492,117 +496,159 @@ class DriverProfileView extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFECFDF5),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFA7F3D0)),
+                  child: controller.isBusMode
+                      ? Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFBFDBFE)),
+                              ),
+                              child: const Icon(
+                                Icons.directions_bus_rounded,
+                                color: Color(0xFF1D4ED8),
+                                size: 24,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.electric_rickshaw_rounded,
-                              color: Color(0xFF059669),
-                              size: 24,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Text(
+                                    'Campus Shuttle Bus (PB-12-A-4019)',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Capacity: 32 Seats · Route: Campus ↔ City Centre',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
-                                Text(
-                                  cartName,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF0F172A),
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFECFDF5),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                                  ),
+                                  child: const Icon(
+                                    Icons.electric_rickshaw_rounded,
+                                    color: Color(0xFF059669),
+                                    size: 24,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Fleet ID: $cartId · Occupancy: ${controller.occupancy}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF64748B),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        cartName,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Fleet ID: $cartId · Occupancy: ${controller.occupancy}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Dropdown to switch assigned cart
-                      DropdownButtonHideUnderline(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: DropdownButton<String>(
-                            value: controller.availableCarts.any((c) => c.id == controller.selectedCart)
-                                ? controller.selectedCart
-                                : (controller.availableCarts.isNotEmpty
-                                    ? controller.availableCarts.first.id
-                                    : controller.selectedCart),
-                            isExpanded: true,
-                            icon: const Icon(
-                              Icons.swap_horiz_rounded,
-                              size: 20,
-                              color: Color(0xFF059669),
-                            ),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF0F172A),
-                            ),
-                            items: controller.availableCarts.isEmpty
-                                ? [
-                                    DropdownMenuItem<String>(
-                                      value: controller.selectedCart,
-                                      child: Text(
-                                        'Assigned: ${controller.selectedCartName}',
-                                      ),
-                                    ),
-                                  ]
-                                : controller.availableCarts.map((cart) {
-                                    return DropdownMenuItem<String>(
-                                      value: cart.id,
-                                      child: Text(
-                                        'Assigned: ${cart.name}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                controller.setSelectedCart(val);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Assigned cart switched to ${controller.selectedCartName}',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                    backgroundColor: const Color(0xFF18181B),
-                                    behavior: SnackBarBehavior.floating,
-                                    duration: const Duration(seconds: 2),
+                            const SizedBox(height: 12),
+                            // Dropdown to switch assigned cart
+                            DropdownButtonHideUnderline(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: DropdownButton<String>(
+                                  value: controller.availableCarts.any((c) => c.id == controller.selectedCart)
+                                      ? controller.selectedCart
+                                      : (controller.availableCarts.isNotEmpty
+                                          ? controller.availableCarts.first.id
+                                          : controller.selectedCart),
+                                  isExpanded: true,
+                                  icon: const Icon(
+                                    Icons.swap_horiz_rounded,
+                                    size: 20,
+                                    color: Color(0xFF059669),
                                   ),
-                                );
-                              }
-                            },
-                          ),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  items: controller.availableCarts.isEmpty
+                                      ? [
+                                          DropdownMenuItem<String>(
+                                            value: controller.selectedCart,
+                                            child: Text(
+                                              'Assigned: ${controller.selectedCartName}',
+                                            ),
+                                          ),
+                                        ]
+                                      : controller.availableCarts.map((cart) {
+                                          return DropdownMenuItem<String>(
+                                            value: cart.id,
+                                            child: Text(
+                                              'Assigned: ${cart.name}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      controller.setSelectedCart(val);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Assigned cart switched to ${controller.selectedCartName}',
+                                            style: const TextStyle(fontSize: 12),
+                                          ),
+                                          backgroundColor: const Color(0xFF18181B),
+                                          behavior: SnackBarBehavior.floating,
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
                 ),
 
                 const SizedBox(height: 24),

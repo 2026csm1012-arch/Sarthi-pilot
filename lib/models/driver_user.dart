@@ -5,12 +5,30 @@ class DriverUser {
     required this.email,
     required this.name,
     String? driverId,
-  }) : _explicitDriverId = driverId;
+    String? role,
+  })  : _explicitDriverId = driverId,
+        _explicitRole = role;
 
   final String uid;
   final String email;
   final String name;
   final String? _explicitDriverId;
+  final String? _explicitRole;
+
+  /// Returns driver vehicle mode role ('cart' or 'bus').
+  /// Role is fixed strictly based on driver email:
+  /// Any email containing 'bus' (e.g. bus.driver@iitrpr.ac.in) is bound to 'bus',
+  /// otherwise bound to 'cart' (EV Cart).
+  String get role {
+    final explicit = _explicitRole;
+    if (explicit != null && (explicit == 'bus' || explicit == 'cart')) {
+      return explicit;
+    }
+    return email.toLowerCase().contains('bus') ? 'bus' : 'cart';
+  }
+
+  bool get isBusDriver => role == 'bus';
+  bool get isCartDriver => role == 'cart';
 
   /// Returns an 8-digit hexadecimal driver ID (e.g. '4A8F10CD').
   String get driverId {
