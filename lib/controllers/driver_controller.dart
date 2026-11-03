@@ -48,6 +48,62 @@ class DriverController extends ChangeNotifier {
   StreamSubscription<List<RideRequest>>? _ridesSub;
   StreamSubscription<RideRequest?>? _activeRideSub;
   StreamSubscription<List<RideRequest>>? _historySub;
+  StreamSubscription<List<BusTicket>>? _ticketsSub;
+  StreamSubscription<List<Map<String, dynamic>>>? _busesSub;
+
+  // Available buses from Firestore
+  List<Map<String, dynamic>> _availableBuses = [];
+  List<Map<String, dynamic>> get availableBuses =>
+      List.unmodifiable(_availableBuses);
+  String _selectedBusId = '';
+  String get selectedBusId => _selectedBusId;
+  void setSelectedBusId(String id) {
+    _selectedBusId = id;
+    _autoUpdateOccupancy();
+    notifyListeners();
+  }
+
+  Map<String, dynamic>? get selectedBus {
+    if (_availableBuses.isEmpty) return null;
+    return _availableBuses.firstWhere(
+      (b) => b['id'] == _selectedBusId,
+      orElse: () => _availableBuses.first,
+    );
+  }
+
+  String get currentBusRoute {
+    final bus = selectedBus;
+    return bus != null ? (bus['route'] as String? ?? '') : '';
+  }
+
+  String get currentBusRegistration {
+    final bus = selectedBus;
+    return bus != null ? (bus['registrationNumber'] as String? ?? '') : '';
+  }
+
+  String get currentRouteTitle {
+    final bus = selectedBus;
+    if (bus == null) return 'Campus Bus';
+    final route = bus['route'] as String? ?? 'Campus Bus';
+    final reg = bus['registrationNumber'] as String? ?? '';
+    return reg.isNotEmpty ? '$route ($reg)' : route;
+  }
+
+  List<BusTicket> get currentBusTickets {
+    final bus = selectedBus;
+    final bId = bus?['id'] as String? ?? _selectedBusId;
+    final bRoute = bus?['route'] as String? ?? '';
+    final bReg = bus?['registrationNumber'] as String? ?? '';
+
+    if (bId.isEmpty && bRoute.isEmpty) return _tickets;
+
+    return _tickets.where((t) {
+      if (t.busId.isNotEmpty && t.busId == bId) return true;
+      if (bRoute.isNotEmpty && t.route.toLowerCase().contains(bRoute.toLowerCase())) return true;
+      if (bReg.isNotEmpty && t.busNo.toLowerCase() == bReg.toLowerCase()) return true;
+      return false;
+    }).toList();
+  }
 
   // Ride History collection associated with this driver ID
   final List<RideRequest> _rideHistory = [];
@@ -127,28 +183,11 @@ class DriverController extends ChangeNotifier {
   ];
 
   int get totalSeats => 32;
-  int get onboardedCount => _tickets
-      .where((t) => t.status.contains('Used') || t.status.contains('Onboarded'))
+  int get onboardedCount => currentBusTickets
+      .where((t) => t.isConfirmed)
       .length;
 
   void _initData() {
-    _tickets.addAll([
-      BusTicket(
-        id: 'TKT-8841',
-        route: 'Main Campus → Rupnagar City Centre',
-        time: '02:30 PM',
-        busNo: 'PB-12-A-4019',
-        status: 'Valid',
-      ),
-      BusTicket(
-        id: 'TKT-1042',
-        route: 'Main Campus → Morinda Railway Station',
-        time: '04:15 PM',
-        busNo: 'PB-12-B-8821',
-        status: 'Valid',
-      ),
-    ]);
-
     // Ensure database carts exist
     _firebaseService.ensureDefaultCartsExist();
 
@@ -163,7 +202,6 @@ class DriverController extends ChangeNotifier {
       }
     });
 
-
     // Stream real-time student ride requests dynamically from the database
     _ridesSub = _firebaseService.streamPendingRequests().listen((incoming) {
       // Check if a pending request disappeared (cancelled by student before accept)
@@ -177,64 +215,31 @@ class DriverController extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Seed initial ride history entries for driver display
-    _rideHistory.addAll([
-      RideRequest(
-        id: 'RIDE-1049',
-        from: 'Satluj Hostel',
-        to: 'Nalanda Library Junction',
-        time: '35m ago',
-        status: 'completed',
-        userName: 'Aman Sharma',
-        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
-        driverName: driverUser?.name ?? 'DRIVER',
-        assignedCartId: 'cart-1',
-        completedAt: DateTime.now().subtract(const Duration(minutes: 35)),
-      ),
-      RideRequest(
-        id: 'RIDE-1038',
-        from: 'Chenab Hostel',
-        to: 'Main Gate Campus Entrance',
-        time: '2h ago',
-        status: 'completed',
-        userName: 'Priya Patel',
-        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
-        driverName: driverUser?.name ?? 'DRIVER',
-        assignedCartId: 'cart-1',
-        completedAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      RideRequest(
-        id: 'RIDE-1012',
-        from: 'Annapurna Mess',
-        to: 'J.C. Bose Block',
-        time: 'Yesterday',
-        status: 'completed',
-        userName: 'Rahul Verma',
-        driverId: driverUser?.uid ?? 'DEMO-DRIVER-01',
-        driverName: driverUser?.name ?? 'DRIVER',
-        assignedCartId: 'cart-2',
-        completedAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-    ]);
+    // Stream real-time completed ride history from Firebase
+    _historySub = _firebaseService
+        .streamDriverRideHistory(driverUser?.uid)
+        .listen((liveHistory) {
+      _rideHistory.clear();
+      _rideHistory.addAll(liveHistory);
+      notifyListeners();
+    });
 
-    // Stream real-time completed ride history from Firebase for this driver
-    if (driverUser != null) {
-      _historySub = _firebaseService
-          .streamDriverRideHistory(driverUser!.uid)
-          .listen((liveHistory) {
-        if (liveHistory.isNotEmpty) {
-          for (final item in liveHistory) {
-            final idx = _rideHistory.indexWhere((r) => r.id == item.id);
-            if (idx != -1) {
-              _rideHistory[idx] = item;
-            } else {
-              _rideHistory.insert(0, item);
-            }
-          }
-          notifyListeners();
-        }
-      });
-    }
+    // Stream real-time passenger tickets from Firebase
+    _ticketsSub = _firebaseService.streamTickets().listen((liveTickets) {
+      _tickets.clear();
+      _tickets.addAll(liveTickets);
+      _autoUpdateOccupancy();
+      notifyListeners();
+    });
+
+    // Stream scheduled buses from Firestore
+    _busesSub = _firebaseService.streamBuses().listen((buses) {
+      _availableBuses = buses;
+      if (_selectedBusId.isEmpty && buses.isNotEmpty) {
+        _selectedBusId = buses.first['id'] as String? ?? '';
+      }
+      notifyListeners();
+    });
 
     // Probe hardware GPS for initial phone location
     _checkInitialDeviceLocation();
@@ -410,6 +415,19 @@ class DriverController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Immediately sets vehicle offline when app closes, detaches, or pauses.
+  void setOfflineImmediate() {
+    if (_isOnline) {
+      _isOnline = false;
+      _isBroadcasting = false;
+      _locationService.stopListening();
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = null;
+      _firebaseService.setVehicleOffline(_selectedCart);
+      notifyListeners();
+    }
+  }
+
   /// Alias for duty toggle to maintain backward compatibility.
   void toggleLocationBroadcast() {
     toggleOnlineStatus();
@@ -564,21 +582,6 @@ class DriverController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Injects a test ride request directly into the database for demonstration.
-  void addTestRequest() {
-    _firebaseService.createTestRideRequest();
-    if (!_firebaseService.isFirestoreAvailable) {
-      _requests.add(RideRequest(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        from: 'Satlej Hostel',
-        to: 'JC Bose Block',
-        time: 'Just now',
-        userName: 'Aman Sharma',
-      ));
-      notifyListeners();
-    }
-  }
-
   /// Extracts ticket code from potential QR contents (plain, JSON, or URL).
   String _parseTicketCode(String raw) {
     final trimmed = raw.trim();
@@ -597,8 +600,9 @@ class DriverController extends ChangeNotifier {
     return trimmed.toUpperCase();
   }
 
-  /// Verifies a ticket code against the manifest or dynamic student booking.
-  bool verifyTicket(String code) {
+  /// Verifies a ticket code directly against Firestore database and updates confirmation.
+  /// Strict verification: ticket MUST belong to the driver's current bus / route!
+  Future<bool> verifyTicket(String code) async {
     final cleanCode = _parseTicketCode(code);
     if (cleanCode.isEmpty) {
       _scanResultType = 'error';
@@ -607,41 +611,70 @@ class DriverController extends ChangeNotifier {
       return false;
     }
 
-    final index = _tickets.indexWhere((t) => t.id == cleanCode);
+    final currentBus = selectedBus;
+    final expectedBusId = currentBus?['id'] as String? ?? _selectedBusId;
+    final expectedRoute = currentBus?['route'] as String?;
+    final expectedBusReg = currentBus?['registrationNumber'] as String?;
 
-    if (index != -1) {
-      final ticket = _tickets[index];
-      if (ticket.status == 'Valid') {
-        ticket.status = 'Used (Onboarded)';
-        _scanResultType = 'success';
-        _scanResultText = '✓ Ticket ${ticket.id} Verified Successfully! Passenger checked in.';
-        _autoUpdateOccupancy();
-        notifyListeners();
-        return true;
-      } else {
-        _scanResultType = 'warning';
-        _scanResultText = '⚠ Ticket ${ticket.id} was already used!';
-        notifyListeners();
-        return false;
-      }
-    } else if (cleanCode.startsWith('TKT-') && !cleanCode.contains('9999')) {
-      // Dynamic verification: valid student ticket booked via Sarthi_APP!
+    // Verify directly in Firestore database with bus matching validation
+    final result = await _firebaseService.verifyAndConfirmTicket(
+      ticketId: cleanCode,
+      driverId: driverUser?.uid,
+      driverName: driverUser?.name,
+      expectedBusId: expectedBusId,
+      expectedRoute: expectedRoute,
+      expectedBusRegistration: expectedBusReg,
+    );
+
+    if (result['wrongBus'] == true) {
+      final tRoute = result['ticketRoute'] as String? ?? 'Another Route';
+      final tBusNo = result['ticketBusNo'] as String? ?? '';
+      final myRoute = result['expectedRoute'] as String? ?? currentRouteTitle;
+
+      _scanResultType = 'error';
+      _scanResultText =
+          '⛔ WRONG BUS / ROUTE!\nTicket $cleanCode is for:\n👉 $tRoute ($tBusNo)\n\nIt CANNOT be scanned on this bus ($myRoute).';
+      notifyListeners();
+      return false;
+    }
+
+    if (result['success'] == true) {
+      final passenger = result['userName'] as String? ?? 'Student';
+      final route = result['route'] as String? ?? currentBusRoute;
+      final busNo = result['busNo'] as String? ?? currentBusRegistration;
+      final pickup = result['pickup'] as String? ?? '';
+      final destination = result['destination'] as String? ?? '';
+
       final dynamicTicket = BusTicket(
         id: cleanCode,
-        route: 'Campus Transit Route',
+        route: route,
         time: 'Just now',
-        busNo: 'PB-12-A-4019',
+        busNo: busNo,
+        busId: expectedBusId,
         status: 'Used (Onboarded)',
+        passengerName: passenger,
+        pickup: pickup,
+        drop: destination,
+        verifiedAt: DateTime.now(),
       );
+      _tickets.removeWhere((t) => t.id == cleanCode);
       _tickets.insert(0, dynamicTicket);
+
       _scanResultType = 'success';
-      _scanResultText = '✓ Sarthi App Ticket $cleanCode Verified! Passenger onboarded.';
+      _scanResultText =
+          '✓ Ticket $cleanCode Verified!\nPassenger: $passenger ($pickup ➔ $destination)';
       _autoUpdateOccupancy();
       notifyListeners();
       return true;
+    } else if (result['alreadyUsed'] == true) {
+      _scanResultType = 'warning';
+      _scanResultText = '⚠ Ticket $cleanCode was ALREADY USED!';
+      notifyListeners();
+      return false;
     } else {
       _scanResultType = 'error';
-      _scanResultText = '✕ Invalid Ticket ID ($cleanCode). Please check again.';
+      _scanResultText =
+          '✕ ${result['reason'] ?? 'Invalid Ticket ID ($cleanCode).'}';
       notifyListeners();
       return false;
     }
@@ -664,6 +697,8 @@ class DriverController extends ChangeNotifier {
     _ridesSub?.cancel();
     _activeRideSub?.cancel();
     _historySub?.cancel();
+    _ticketsSub?.cancel();
+    _busesSub?.cancel();
     _locationService.stopListening();
     _heartbeatTimer?.cancel();
     if (_isOnline) {

@@ -8,6 +8,8 @@ class QrScannerView extends StatefulWidget {
     super.key,
     required this.onScanned,
     this.continuous = true,
+    this.currentBusInfo,
+    this.getFeedbackMessage,
   });
 
   /// Callback when a QR code is detected. Returns true if valid, false otherwise.
@@ -15,6 +17,12 @@ class QrScannerView extends StatefulWidget {
 
   /// Whether to keep scanning next passengers after a successful scan.
   final bool continuous;
+
+  /// Route/bus currently assigned to this driver
+  final String? currentBusInfo;
+
+  /// Optional provider for detailed feedback message (e.g. wrong bus reasons)
+  final String? Function()? getFeedbackMessage;
 
   @override
   State<QrScannerView> createState() => _QrScannerViewState();
@@ -28,10 +36,26 @@ class _QrScannerViewState extends State<QrScannerView>
 
   bool _isProcessing = false;
   bool _isTorchOn = false;
+  CameraFacing _facing = CameraFacing.back;
   String? _lastScannedCode;
   String? _feedbackMessage;
   bool? _lastScanSuccess;
   Timer? _cooldownTimer;
+
+  Future<void> _switchCameraFacing() async {
+    try {
+      await _scannerController.switchCamera();
+      if (mounted) {
+        setState(() {
+          _facing = (_facing == CameraFacing.back)
+              ? CameraFacing.front
+              : CameraFacing.back;
+        });
+      }
+    } catch (e) {
+      debugPrint('switchCamera error: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -79,11 +103,15 @@ class _QrScannerViewState extends State<QrScannerView>
 
       if (!mounted) return;
 
+      final detailedMsg = widget.getFeedbackMessage?.call();
+
       setState(() {
         _lastScanSuccess = success;
-        _feedbackMessage = success
-            ? '✓ Ticket verified: $rawValue'
-            : '✕ Scan issue with $rawValue';
+        _feedbackMessage = (detailedMsg != null && detailedMsg.isNotEmpty)
+            ? detailedMsg
+            : (success
+                ? '✓ Ticket verified: $rawValue'
+                : '✕ Scan issue with $rawValue');
       });
 
       if (!widget.continuous && success) {
@@ -163,77 +191,111 @@ class _QrScannerViewState extends State<QrScannerView>
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.black54,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
-                      tooltip: 'Close Scanner',
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.qr_code_scanner,
-                            color: Color(0xFF10B981), size: 16),
-                        SizedBox(width: 6),
-                        Text(
-                          'Bus Ticket Scanner',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                   Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Flashlight toggle
                       CircleAvatar(
                         backgroundColor: Colors.black54,
                         child: IconButton(
-                          icon: Icon(
-                            _isTorchOn ? Icons.flash_on : Icons.flash_off,
-                            color: _isTorchOn ? Colors.amber : Colors.white,
-                          ),
-                          onPressed: () async {
-                            try {
-                              await _scannerController.toggleTorch();
-                              if (mounted) {
-                                setState(() => _isTorchOn = !_isTorchOn);
-                              }
-                            } catch (_) {}
-                          },
-                          tooltip: 'Toggle Flashlight',
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                          tooltip: 'Close Scanner',
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      // Camera flip
-                      CircleAvatar(
-                        backgroundColor: Colors.black54,
-                        child: IconButton(
-                          icon: const Icon(Icons.flip_camera_ios,
-                              color: Colors.white),
-                          onPressed: () => _scannerController.switchCamera(),
-                          tooltip: 'Switch Camera',
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white24),
                         ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.qr_code_scanner,
+                                color: Color(0xFF10B981), size: 16),
+                            SizedBox(width: 6),
+                            Text(
+                              'Bus Ticket Scanner',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Flashlight toggle
+                          CircleAvatar(
+                            backgroundColor: Colors.black54,
+                            child: IconButton(
+                              icon: Icon(
+                                _isTorchOn ? Icons.flash_on : Icons.flash_off,
+                                color: _isTorchOn ? Colors.amber : Colors.white,
+                              ),
+                              onPressed: () async {
+                                try {
+                                  await _scannerController.toggleTorch();
+                                  if (mounted) {
+                                    setState(() => _isTorchOn = !_isTorchOn);
+                                  }
+                                } catch (_) {}
+                              },
+                              tooltip: 'Toggle Flashlight',
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Camera flip (Front / Back)
+                          CircleAvatar(
+                            backgroundColor: Colors.black54,
+                            child: IconButton(
+                              icon: const Icon(Icons.cameraswitch_rounded,
+                                  color: Colors.white),
+                              onPressed: _switchCameraFacing,
+                              tooltip: 'Switch Camera (${_facing == CameraFacing.back ? "Back" : "Front"})',
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                  if (widget.currentBusInfo != null && widget.currentBusInfo!.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF065F46).withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF34D399), width: 1.2),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.directions_bus_rounded,
+                              size: 14, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Scanning for: ${widget.currentBusInfo}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -260,6 +322,31 @@ class _QrScannerViewState extends State<QrScannerView>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Prominent Camera Switcher Pill for Driver
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: OutlinedButton.icon(
+                        onPressed: _switchCameraFacing,
+                        icon: const Icon(Icons.cameraswitch_rounded,
+                            size: 16, color: Colors.white),
+                        label: Text(
+                          'Switch Camera: ${_facing == CameraFacing.back ? "Back Camera" : "Front Camera"}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white38),
+                          backgroundColor: Colors.black45,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                        ),
+                      ),
+                    ),
                     if (_feedbackMessage != null) ...[
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
