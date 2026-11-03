@@ -22,7 +22,10 @@ class DriverProfileView extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Log Out',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: const Text(
           'Are you sure you want to log out of the Driver Portal? Any active vehicle will be set to offline and location broadcast will stop.',
           style: TextStyle(fontSize: 13, color: Color(0xFF52525B)),
@@ -30,7 +33,10 @@ class DriverProfileView extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF71717A))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF71717A)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -38,7 +44,9 @@ class DriverProfileView extends StatelessWidget {
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Log Out'),
           ),
@@ -137,11 +145,18 @@ class DriverProfileView extends StatelessWidget {
             actions: [
               Container(
                 margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
-                  color: isOnline ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+                  color: isOnline
+                      ? const Color(0xFFECFDF5)
+                      : const Color(0xFFF1F5F9),
                   border: Border.all(
-                    color: isOnline ? const Color(0xFFA7F3D0) : const Color(0xFFCBD5E1),
+                    color: isOnline
+                        ? const Color(0xFFA7F3D0)
+                        : const Color(0xFFCBD5E1),
                   ),
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -152,7 +167,9 @@ class DriverProfileView extends StatelessWidget {
                       width: 7,
                       height: 7,
                       decoration: BoxDecoration(
-                        color: isOnline ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                        color: isOnline
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFF94A3B8),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -163,7 +180,9 @@ class DriverProfileView extends StatelessWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: isOnline ? const Color(0xFF047857) : const Color(0xFF64748B),
+                        color: isOnline
+                            ? const Color(0xFF047857)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ],
@@ -235,7 +254,9 @@ class DriverProfileView extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFECFDF5),
                                     borderRadius: BorderRadius.circular(5),
-                                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                                    border: Border.all(
+                                      color: const Color(0xFFA7F3D0),
+                                    ),
                                   ),
                                   child: const Text(
                                     'DRIVER ID',
@@ -352,7 +373,8 @@ class DriverProfileView extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
                                       'Device Battery',
@@ -391,7 +413,9 @@ class DriverProfileView extends StatelessWidget {
                                   child: LinearProgressIndicator(
                                     value: (battery / 100.0).clamp(0.0, 1.0),
                                     backgroundColor: const Color(0xFFE2E8F0),
-                                    valueColor: AlwaysStoppedAnimation<Color>(batteryColor),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      batteryColor,
+                                    ),
                                     minHeight: 5,
                                   ),
                                 ),
@@ -421,7 +445,9 @@ class DriverProfileView extends StatelessWidget {
                                   ? const Color(0xFF059669)
                                   : const Color(0xFF94A3B8),
                               title: 'GPS Status',
-                              subtitle: isOnline ? 'Hardware GPS Active' : 'GPS Standby',
+                              subtitle: isOnline
+                                  ? 'Hardware GPS Active'
+                                  : 'GPS Standby',
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -437,7 +463,10 @@ class DriverProfileView extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
@@ -504,7 +533,9 @@ class DriverProfileView extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: const Color(0xFFEFF6FF),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFBFDBFE)),
+                                border: Border.all(
+                                  color: const Color(0xFFBFDBFE),
+                                ),
                               ),
                               child: const Icon(
                                 Icons.directions_bus_rounded,
@@ -548,7 +579,9 @@ class DriverProfileView extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFECFDF5),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                                    border: Border.all(
+                                      color: const Color(0xFFA7F3D0),
+                                    ),
                                   ),
                                   child: const Icon(
                                     Icons.electric_rickshaw_rounded,
@@ -559,7 +592,8 @@ class DriverProfileView extends StatelessWidget {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         cartName,
@@ -586,18 +620,26 @@ class DriverProfileView extends StatelessWidget {
                             // Dropdown to switch assigned cart
                             DropdownButtonHideUnderline(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF8FAFC),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: DropdownButton<String>(
-                                  value: controller.availableCarts.any((c) => c.id == controller.selectedCart)
+                                  value:
+                                      controller.availableCarts.any(
+                                        (c) => c.id == controller.selectedCart,
+                                      )
                                       ? controller.selectedCart
                                       : (controller.availableCarts.isNotEmpty
-                                          ? controller.availableCarts.first.id
-                                          : controller.selectedCart),
+                                            ? controller.availableCarts.first.id
+                                            : controller.selectedCart),
                                   isExpanded: true,
                                   icon: const Icon(
                                     Icons.swap_horiz_rounded,
@@ -631,13 +673,19 @@ class DriverProfileView extends StatelessWidget {
                                   onChanged: (val) {
                                     if (val != null) {
                                       controller.setSelectedCart(val);
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
                                           content: Text(
                                             'Assigned cart switched to ${controller.selectedCartName}',
-                                            style: const TextStyle(fontSize: 12),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                            ),
                                           ),
-                                          backgroundColor: const Color(0xFF18181B),
+                                          backgroundColor: const Color(
+                                            0xFF18181B,
+                                          ),
                                           behavior: SnackBarBehavior.floating,
                                           duration: const Duration(seconds: 2),
                                         ),

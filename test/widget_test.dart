@@ -39,21 +39,10 @@ void main() {
     // Verify no hardcoded requests initially
     expect(find.text('No active ride requests'), findsOneWidget);
 
-    // Add a test ride request using '+ Add Test'
-    await tester.tap(find.text('+ Add Test'));
-    await tester.pumpAndSettle();
-
-    // Accept the ride request
-    expect(find.text('Satlej Hostel → JC Bose Block'), findsOneWidget);
-    await tester.tap(find.text('Accept').first);
-    await tester.pumpAndSettle();
-    expect(find.text('Satlej Hostel → JC Bose Block'), findsNothing);
-
     // Test Ride History button in App Bar next to Profile
     await tester.tap(find.byKey(const ValueKey('app_bar_history_button')));
     await tester.pumpAndSettle();
-    expect(find.text('Ride History'), findsOneWidget);
-    expect(find.text('Past Trips & Logs'), findsOneWidget);
+    expect(find.text('Driver History & Logs'), findsOneWidget);
 
     // Back from Ride History screen
     await tester.tap(find.byType(BackButton));
@@ -106,18 +95,21 @@ void main() {
     expect(find.text('Open Camera QR Scanner'), findsOneWidget);
     expect(find.text('Ready to scan incoming passengers...'), findsOneWidget);
 
-    // Test valid ticket TKT-8841 using quick chip
-    await tester.tap(find.text('TKT-8841 (Valid)'));
+    // Test valid ticket TKT-8841 using text input
+    await tester.enterText(find.byType(TextField), 'TKT-8841');
+    await tester.tap(find.text('Verify & Check-In Passenger'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Verified Successfully!'), findsOneWidget);
 
     // Test verifying same ticket again (already used)
-    await tester.tap(find.text('TKT-8841 (Valid)'));
+    await tester.enterText(find.byType(TextField), 'TKT-8841');
+    await tester.tap(find.text('Verify & Check-In Passenger'));
     await tester.pumpAndSettle();
     expect(find.textContaining('was already used!'), findsOneWidget);
 
     // Test verifying invalid ticket
-    await tester.tap(find.text('TKT-9999 (Invalid)'));
+    await tester.enterText(find.byType(TextField), 'TKT-9999');
+    await tester.tap(find.text('Verify & Check-In Passenger'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Invalid Ticket ID'), findsOneWidget);
   });

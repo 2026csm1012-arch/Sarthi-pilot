@@ -24,7 +24,9 @@ class RideHistoryView extends StatelessWidget {
         listenable: controller,
         builder: (context, _) {
           final history = controller.rideHistory;
-          final completedCount = history.where((r) => r.status == 'completed').length;
+          final completedCount = history
+              .where((r) => r.status == 'completed')
+              .length;
           final tickets = controller.tickets;
           final verifiedTickets = tickets.where((t) => t.isConfirmed).toList();
 
@@ -72,7 +74,10 @@ class RideHistoryView extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.confirmation_number_outlined, size: 16),
+                        const Icon(
+                          Icons.confirmation_number_outlined,
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
                         Text('Bus Tickets (${tickets.length})'),
                       ],
@@ -104,29 +109,12 @@ class RideHistoryView extends StatelessWidget {
                           ),
                           _buildMetric(
                             label: 'Driver ID',
-                            value: driverUser.uid.length > 8
-                                ? driverUser.uid.substring(0, 8)
-                                : driverUser.uid,
+                            value: driverUser.driverId,
                             icon: Icons.badge_outlined,
                             color: const Color(0xFF6366F1),
                           ),
                         ],
                       ),
-<<<<<<< HEAD
-                      Container(height: 36, width: 1, color: const Color(0xFFE4E4E7)),
-                      _buildMetric(
-                        label: 'Completed',
-                        value: '$completedCount',
-                        icon: Icons.check_circle_rounded,
-                        color: const Color(0xFF16A34A),
-                      ),
-                      Container(height: 36, width: 1, color: const Color(0xFFE4E4E7)),
-                      _buildMetric(
-                        label: 'Driver ID',
-                        value: driverUser.driverId,
-                        icon: Icons.badge_outlined,
-                        color: const Color(0xFF6366F1),
-=======
                       const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -147,15 +135,13 @@ class RideHistoryView extends StatelessWidget {
                             ),
                           ),
                         ],
->>>>>>> fdaa76e23e3b373ecfc9b1d5b5ea0eecd644c52b
                       ),
                       const SizedBox(height: 12),
                       if (history.isEmpty)
                         _buildEmptyState(
                           icon: Icons.receipt_long_outlined,
                           title: 'No Ride History Recorded',
-                          subtitle:
-                              'Trips accepted and completed by you will appear here automatically.',
+                          subtitle: 'Trips accepted and completed by you will appear here automatically.',
                         )
                       else
                         ...history.map(_buildRideHistoryCard),
@@ -192,15 +178,6 @@ class RideHistoryView extends StatelessWidget {
                           ),
                         ],
                       ),
-<<<<<<< HEAD
-                    ),
-                    Text(
-                      'Driver ID: #${driverUser.driverId}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF71717A),
-                        fontFamily: 'monospace',
-=======
                       const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -221,15 +198,13 @@ class RideHistoryView extends StatelessWidget {
                             ),
                           ),
                         ],
->>>>>>> fdaa76e23e3b373ecfc9b1d5b5ea0eecd644c52b
                       ),
                       const SizedBox(height: 12),
                       if (tickets.isEmpty)
                         _buildEmptyState(
                           icon: Icons.confirmation_number_outlined,
                           title: 'No Bus Tickets Recorded Yet',
-                          subtitle:
-                              'Tickets booked by students and confirmed via camera scan will appear here in real time.',
+                          subtitle: 'Tickets booked by students and confirmed via camera scan will appear here in real time.',
                         )
                       else
                         ...tickets.map(_buildBusTicketCard),
@@ -471,7 +446,11 @@ class RideHistoryView extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.person_outline, size: 14, color: Color(0xFF71717A)),
+                  const Icon(
+                    Icons.person_outline,
+                    size: 14,
+                    color: Color(0xFF71717A),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     ride.userName,
@@ -525,9 +504,13 @@ class RideHistoryView extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    isConfirmed ? Icons.check_circle_rounded : Icons.confirmation_number_outlined,
+                    isConfirmed
+                        ? Icons.check_circle_rounded
+                        : Icons.confirmation_number_outlined,
                     size: 16,
-                    color: isConfirmed ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                    color: isConfirmed
+                        ? const Color(0xFF16A34A)
+                        : const Color(0xFF2563EB),
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -543,7 +526,9 @@ class RideHistoryView extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isConfirmed ? const Color(0xFFDCFCE7) : const Color(0xFFDBEAFE),
+                  color: isConfirmed
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFDBEAFE),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -551,7 +536,9 @@ class RideHistoryView extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: isConfirmed ? const Color(0xFF15803D) : const Color(0xFF1D4ED8),
+                    color: isConfirmed
+                        ? const Color(0xFF15803D)
+                        : const Color(0xFF1D4ED8),
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -571,7 +558,11 @@ class RideHistoryView extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.directions_outlined, size: 14, color: Color(0xFF71717A)),
+                const Icon(
+                  Icons.directions_outlined,
+                  size: 14,
+                  color: Color(0xFF71717A),
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -594,7 +585,11 @@ class RideHistoryView extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.person_outline, size: 14, color: Color(0xFF71717A)),
+                  const Icon(
+                    Icons.person_outline,
+                    size: 14,
+                    color: Color(0xFF71717A),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     ticket.passengerName,
