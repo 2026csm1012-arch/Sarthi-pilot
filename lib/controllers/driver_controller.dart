@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sarthi_pilot/models/bus_schedule_model.dart';
 import 'package:sarthi_pilot/models/bus_ticket.dart';
 import 'package:sarthi_pilot/models/ride_request.dart';
 import 'package:sarthi_pilot/models/vehicle_cart.dart';
@@ -55,15 +56,51 @@ class DriverController extends ChangeNotifier {
   StreamSubscription<List<RideRequest>>? _historySub;
   StreamSubscription<List<BusTicket>>? _ticketsSub;
   StreamSubscription<List<Map<String, dynamic>>>? _busesSub;
+  StreamSubscription<Map<String, dynamic>?>? _dayScheduleSub;
 
-  // Available buses from Firestore
+  // Raw buses directly from Firestore "buses" collection
+  List<Map<String, dynamic>> _rawFirestoreBuses = [];
+
+  // Strictly locked to today's timetable day
+  static String get todayDayId => OfficialBusScheduleData.dayIdForDate(DateTime.now());
+
+  static String get todayName {
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return days[DateTime.now().weekday - 1];
+  }
+
+  static String get formattedTodayDate {
+    final now = DateTime.now();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '$todayName, ${now.day} ${months[now.month - 1]}';
+  }
+
+  String get todayScheduleTitle =>
+      OfficialBusScheduleData.dayTitleForId(todayDayId);
+
+  // Available buses for the selected day schedule (defaults to today only)
   List<Map<String, dynamic>> _availableBuses = [];
   List<Map<String, dynamic>> get availableBuses =>
       List.unmodifiable(_availableBuses);
+  String? _gpsErrorMessage;
+  String? get gpsErrorMessage => _gpsErrorMessage;
+
   String _selectedBusId = '';
   String get selectedBusId => _selectedBusId;
   void setSelectedBusId(String id) {
     _selectedBusId = id;
+    _currentStopIndex = 0;
     _autoUpdateOccupancy();
     notifyListeners();
   }
@@ -93,6 +130,141 @@ class DriverController extends ChangeNotifier {
     final reg = bus['registrationNumber'] as String? ?? '';
     return reg.isNotEmpty ? '$route ($reg)' : route;
   }
+
+  // Bus stops along the current route
+  int _currentStopIndex = 0;
+  int get currentStopIndex => _currentStopIndex;
+
+  List<String> get currentBusStops {
+    final bus = selectedBus;
+    final List<String> list = [];
+    void addStop(String s) {
+      final trimmed = s.trim();
+      if (trimmed.isNotEmpty &&
+          !list.any((existing) => existing.toLowerCase() == trimmed.toLowerCase())) {
+        list.add(trimmed);
+      }
+    }
+
+    if (bus != null && bus['stops'] is List && (bus['stops'] as List).isNotEmpty) {
+      for (final s in bus['stops'] as List) {
+        addStop(s.toString());
+      }
+    } else if (bus != null) {
+      final route = bus['route'] as String? ?? '';
+      if (route.contains('→')) {
+        for (final s in route.split('→')) {
+          addStop(s);
+        }
+      } else if (route.contains('->')) {
+        for (final s in route.split('->')) {
+          addStop(s);
+        }
+      }
+    }
+
+    // Also include any stops booked in current bus tickets
+    for (final t in currentBusTickets) {
+      if (t.pickup.trim().isNotEmpty) addStop(t.pickup);
+      if (t.drop.trim().isNotEmpty) addStop(t.drop);
+    }
+
+    if (list.isEmpty) {
+      return ['Main Campus', 'IIT Main Gate', 'Rupnagar City Centre'];
+    }
+    return list;
+  }
+
+  String get currentReachedStop {
+    final stops = currentBusStops;
+    if (stops.isEmpty) return 'Campus Stop';
+    if (_currentStopIndex < 0 || _currentStopIndex >= stops.length) {
+      _currentStopIndex = 0;
+    }
+    return stops[_currentStopIndex];
+  }
+
+  void setReachedStopIndex(int index) {
+    final stops = currentBusStops;
+    if (index >= 0 && index < stops.length) {
+      _currentStopIndex = index;
+      notifyListeners();
+    }
+  }
+
+  void nextStop() {
+    final stops = currentBusStops;
+    if (stops.isNotEmpty && _currentStopIndex < stops.length - 1) {
+      _currentStopIndex++;
+      notifyListeners();
+    }
+  }
+
+  void previousStop() {
+    if (_currentStopIndex > 0) {
+      _currentStopIndex--;
+      notifyListeners();
+    }
+  }
+
+  bool get hasNextStop {
+    final stops = currentBusStops;
+    return stops.isNotEmpty && _currentStopIndex < stops.length - 1;
+  }
+
+  bool get hasPreviousStop => _currentStopIndex > 0;
+
+  bool get isFinalStop {
+    final stops = currentBusStops;
+    return stops.isNotEmpty && _currentStopIndex >= stops.length - 1;
+  }
+
+  String get nextStopName {
+    final stops = currentBusStops;
+    if (hasNextStop) {
+      return stops[_currentStopIndex + 1];
+    }
+    return '';
+  }
+
+  String get previousStopName {
+    final stops = currentBusStops;
+    if (hasPreviousStop) {
+      return stops[_currentStopIndex - 1];
+    }
+    return '';
+  }
+
+  int get currentStopUnscannedPickupsCount =>
+      currentStopPickups.where((t) => !t.isConfirmed).length;
+
+  int get currentStopBoardedPickupsCount =>
+      currentStopPickups.where((t) => t.isConfirmed).length;
+
+  static bool _stopsMatch(String s1, String s2) {
+    final n1 = s1.trim().toLowerCase();
+    final n2 = s2.trim().toLowerCase();
+    if (n1.isEmpty || n2.isEmpty) return false;
+    return n1 == n2 || n1.contains(n2) || n2.contains(n1);
+  }
+
+  /// Students holding tickets dropping off at the specified stop.
+  List<BusTicket> getStudentsDroppingOffAt(String stop) {
+    return currentBusTickets.where((t) => _stopsMatch(t.drop, stop)).toList();
+  }
+
+  /// Students holding tickets boarding at the specified stop.
+  List<BusTicket> getStudentsBoardingAt(String stop) {
+    return currentBusTickets.where((t) => _stopsMatch(t.pickup, stop)).toList();
+  }
+
+  /// All students with tickets dropping off at the currently reached stop.
+  List<BusTicket> get currentStopDropOffs =>
+      getStudentsDroppingOffAt(currentReachedStop);
+
+  /// All students with tickets boarding at the currently reached stop.
+  List<BusTicket> get currentStopPickups =>
+      getStudentsBoardingAt(currentReachedStop);
 
   List<BusTicket> get currentBusTickets {
     final bus = selectedBus;
@@ -318,12 +490,13 @@ class DriverController extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Stream scheduled buses from Firestore
+    // Initialize day timetable and stream scheduled buses from Firestore
+    _updateAvailableBuses();
+    _resubscribeDaySchedule();
+
     _busesSub = _firebaseService.streamBuses().listen((buses) {
-      _availableBuses = buses;
-      if (_selectedBusId.isEmpty && buses.isNotEmpty) {
-        _selectedBusId = buses.first['id'] as String? ?? '';
-      }
+      _rawFirestoreBuses = buses;
+      _updateAvailableBuses();
       notifyListeners();
     });
 
@@ -331,11 +504,134 @@ class DriverController extends ChangeNotifier {
     _checkInitialDeviceLocation();
   }
 
+  /// Filters available buses strictly for today's schedule only.
+  void _updateAvailableBuses() {
+    final currentDay = todayDayId;
+
+    // 1. Filter raw Firestore buses by today
+    final dayFilteredFirestore = _rawFirestoreBuses.where((b) {
+      final sDayId = b['scheduleDayId'] as String?;
+      if (sDayId != null && sDayId.trim().isNotEmpty) {
+        return sDayId.trim().toLowerCase() == currentDay.toLowerCase();
+      }
+      final day = b['day'] as String?;
+      if (day != null && day.trim().isNotEmpty) {
+        final dLower = day.trim().toLowerCase();
+        return dLower == currentDay.toLowerCase() ||
+               dLower == todayName.toLowerCase();
+      }
+      final days = b['days'];
+      if (days is List && days.isNotEmpty) {
+        return days.any((d) {
+          final dStr = d.toString().trim().toLowerCase();
+          return dStr == currentDay.toLowerCase() ||
+                 dStr == todayName.toLowerCase();
+        });
+      }
+      final opDays = b['operatingDays'];
+      if (opDays is List && opDays.isNotEmpty) {
+        return opDays.any((d) {
+          final dStr = d.toString().trim().toLowerCase();
+          return dStr == currentDay.toLowerCase() ||
+                 dStr == todayName.toLowerCase();
+        });
+      }
+      // If no day constraint is specified and isActive is not false, it's a daily campus shuttle
+      return b['isActive'] != false;
+    }).toList();
+
+    if (dayFilteredFirestore.isNotEmpty) {
+      _availableBuses = dayFilteredFirestore;
+    } else {
+      // 2. Fallback to Official timetable dataset strictly for today
+      final daySchedule =
+          OfficialBusScheduleData.allDefaultSchedules[currentDay] ??
+              OfficialBusScheduleData.mondaySchedule;
+      _availableBuses = daySchedule.trips.where((t) => t.isActive).map((trip) {
+        return {
+          'id': 'sched_${currentDay}_${trip.id}',
+          'route': trip.title,
+          'departureTime': trip.departureTime,
+          'arrivalTime': trip.arrivalTime,
+          'totalSeats': trip.totalSeats,
+          'availableSeats': trip.availableSeats,
+          'registrationNumber': trip.registrationNumber,
+          'scheduleDayId': currentDay,
+          'tripNumber': trip.tripNumber,
+          'stops': trip.stops.map((s) => s.stopName).toList(),
+          'note': trip.note,
+          'isOfficial': true,
+        };
+      }).toList();
+    }
+
+    // Keep selection valid
+    if (!_availableBuses.any((b) => b['id'] == _selectedBusId)) {
+      _selectedBusId = _availableBuses.isNotEmpty
+          ? (_availableBuses.first['id'] as String? ?? '')
+          : '';
+      _currentStopIndex = 0;
+    }
+
+    _autoUpdateOccupancy();
+  }
+
+  /// Listens to live customized day bus schedule updates from "bus_schedules" Firestore collection.
+  void _resubscribeDaySchedule() {
+    _dayScheduleSub?.cancel();
+    _dayScheduleSub = _firebaseService
+        .streamBusScheduleForDay(todayDayId)
+        .listen((data) {
+      if (data != null && data['trips'] is List && (data['trips'] as List).isNotEmpty) {
+        final List<Map<String, dynamic>> customTrips = [];
+        for (final item in data['trips'] as List) {
+          if (item is Map) {
+            final tMap = Map<String, dynamic>.from(item);
+            if (tMap['isActive'] == false) continue;
+            final stopsRaw = tMap['stops'];
+            final List<String> stopsList = [];
+            if (stopsRaw is List) {
+              for (final s in stopsRaw) {
+                if (s is Map && s['stopName'] != null) {
+                  stopsList.add(s['stopName'].toString());
+                } else if (s != null) {
+                  stopsList.add(s.toString());
+                }
+              }
+            }
+            customTrips.add({
+              'id': tMap['id'] ?? 'custom_${tMap['tripNumber']}',
+              'route': tMap['title'] ?? 'Custom Bus Route',
+              'departureTime': tMap['departureTime'] ?? '',
+              'arrivalTime': tMap['arrivalTime'] ?? '',
+              'totalSeats': tMap['totalSeats'] ?? 35,
+              'availableSeats': tMap['availableSeats'] ?? 35,
+              'registrationNumber': tMap['registrationNumber'] ?? 'PB-12-Bus-01',
+              'scheduleDayId': todayDayId,
+              'tripNumber': tMap['tripNumber'] ?? 1,
+              'stops': stopsList,
+              'note': tMap['note'],
+            });
+          }
+        }
+        if (customTrips.isNotEmpty) {
+          _availableBuses = customTrips;
+          if (!_availableBuses.any((b) => b['id'] == _selectedBusId)) {
+            _selectedBusId = _availableBuses.first['id'] as String? ?? '';
+            _currentStopIndex = 0;
+          }
+          notifyListeners();
+        }
+      }
+    });
+  }
+
   /// Checks if location permission is already available and reads phone GPS location.
   Future<void> _checkInitialDeviceLocation() async {
     try {
       final hasPerm = await _locationService.checkPermission();
-      if (hasPerm) {
+      final isEnabled = await _locationService.isLocationServiceEnabled();
+      if (hasPerm && isEnabled) {
         final loc = await _locationService.getCurrentLocation();
         if (loc != null) {
           _applyDeviceLocation(
@@ -497,57 +793,86 @@ class DriverController extends ChangeNotifier {
   }
 
   /// Toggles driver on-duty availability and active vehicle status.
-  /// When online:
-  /// - Prompts/verifies Android native GPS permissions.
-  /// - Reads phone GPS coordinates with 6-decimal precision.
-  /// - Starts continuous real-time hardware location streaming.
-  /// - Pushes live location to Firebase "locations".
-  /// When offline:
-  /// - Stops location streaming.
-  /// - Sets vehicle status to offline in Firebase "locations".
-  Future<void> toggleOnlineStatus() async {
-    _isOnline = !_isOnline;
-
+  /// Strictly requires real device GPS to be enabled and location permission granted.
+  /// If GPS is off or no real GPS fix is available, prevents the vehicle from going online
+  /// and returns false with a descriptive error in [gpsErrorMessage].
+  Future<bool> toggleOnlineStatus() async {
     if (_isOnline) {
-      _isBroadcasting = true;
-
-      // 1. Request Android native location permission
-      final granted = await _locationService.requestPermission();
-      if (granted) {
-        // 2. Fetch current real hardware GPS location immediately
-        final loc = await _locationService.getCurrentLocation();
-        if (loc != null) {
-          _applyDeviceLocation(
-            lat: loc['latitude']!,
-            lng: loc['longitude']!,
-            head: loc['heading'] ?? 0.0,
-          );
-        }
-      }
-
-      // 3. Start continuous real-time hardware GPS listener
-      _locationService.startListening(
-        onUpdate: (lat, lng, head) {
-          _applyDeviceLocation(lat: lat, lng: lng, head: head);
-          if (_isOnline) {
-            _syncLocationToFirebase();
-          }
-        },
-      );
-
-      // 4. Start heartbeat timer (syncs to Firebase every 3s to refresh timestamp)
-      _startHeartbeatTimer();
-
-      // 5. Immediately sync to Firebase "locations"
-      _syncLocationToFirebase();
-    } else {
+      _isOnline = false;
       _isBroadcasting = false;
       _locationService.stopListening();
       _heartbeatTimer?.cancel();
       _heartbeatTimer = null;
+      _gpsErrorMessage = null;
       await _firebaseService.setVehicleOffline(_selectedCart);
+      notifyListeners();
+      return true;
     }
+
+    // 1. Check and request location permission
+    bool granted = await _locationService.checkPermission();
+    if (!granted) {
+      granted = await _locationService.requestPermission();
+    }
+    if (!granted) {
+      _isOnline = false;
+      _isBroadcasting = false;
+      _gpsErrorMessage =
+          'Location permission denied. Please grant location permission to go online.';
+      notifyListeners();
+      return false;
+    }
+
+    // 2. Check if device location service (GPS) is turned ON
+    final isGpsEnabled = await _locationService.isLocationServiceEnabled();
+    if (!isGpsEnabled) {
+      _isOnline = false;
+      _isBroadcasting = false;
+      _gpsErrorMessage =
+          'Device GPS is turned OFF. Please turn on Location in phone settings to go online.';
+      notifyListeners();
+      return false;
+    }
+
+    // 3. Acquire real hardware GPS fix (do not go online without real coordinates)
+    final loc = await _locationService.getRealGpsFix();
+    if (loc == null) {
+      _isOnline = false;
+      _isBroadcasting = false;
+      _gpsErrorMessage =
+          'Cannot acquire real GPS fix. Ensure device location is active and you have a GPS signal.';
+      notifyListeners();
+      return false;
+    }
+
+    // 4. Real GPS fix acquired successfully
+    _gpsErrorMessage = null;
+    _applyDeviceLocation(
+      lat: loc['latitude']!,
+      lng: loc['longitude']!,
+      head: loc['heading'] ?? 0.0,
+    );
+
+    _isOnline = true;
+    _isBroadcasting = true;
+
+    // 5. Start continuous real-time hardware GPS listener
+    _locationService.startListening(
+      onUpdate: (lat, lng, head) {
+        _applyDeviceLocation(lat: lat, lng: lng, head: head);
+        if (_isOnline) {
+          _syncLocationToFirebase();
+        }
+      },
+    );
+
+    // 6. Start heartbeat timer
+    _startHeartbeatTimer();
+
+    // 7. Immediately sync to Firebase "locations"
+    _syncLocationToFirebase();
     notifyListeners();
+    return true;
   }
 
   /// Immediately sets vehicle offline when app closes, detaches, or pauses.
@@ -564,31 +889,24 @@ class DriverController extends ChangeNotifier {
   }
 
   /// Alias for duty toggle to maintain backward compatibility.
-  void toggleLocationBroadcast() {
-    toggleOnlineStatus();
+  Future<bool> toggleLocationBroadcast() {
+    return toggleOnlineStatus();
   }
 
   /// Periodic heartbeat timer to keep Firebase 'updatedAt' fresh while online.
+  /// Never executes random waypoint cycling - strictly syncs real GPS coordinates.
   void _startHeartbeatTimer() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!_isOnline) return;
 
-      // If no hardware GPS fix exists yet (e.g. running inside desktop or simulator without GPS),
-      // smoothly cycle landmark coordinates so test environments show movement.
-      if (!_hasRealGpsFix) {
-        _waypointIndex = (_waypointIndex + 1) % _campusWaypoints.length;
-        final wp = _campusWaypoints[_waypointIndex];
-        _latitude = double.parse((wp['lat'] as double).toStringAsFixed(6));
-        _longitude = double.parse((wp['lng'] as double).toStringAsFixed(6));
-        _heading = (wp['heading'] as num).toDouble();
-        _currentWaypointName = wp['name'] as String;
-      }
-
       // Periodically refresh device battery stats
       refreshDeviceBattery();
 
-      _syncLocationToFirebase();
+      // Only sync real hardware location
+      if (_hasRealGpsFix) {
+        _syncLocationToFirebase();
+      }
       notifyListeners();
     });
   }
@@ -887,6 +1205,7 @@ class DriverController extends ChangeNotifier {
     _historySub?.cancel();
     _ticketsSub?.cancel();
     _busesSub?.cancel();
+    _dayScheduleSub?.cancel();
     _locationService.stopListening();
     _heartbeatTimer?.cancel();
     if (_isOnline) {

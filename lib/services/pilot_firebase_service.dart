@@ -35,6 +35,7 @@ class PilotFirebaseService {
   static const String ridesCollection = 'rides';
   static const String ticketsCollection = 'tickets';
   static const String busesCollection = 'buses';
+  static const String busSchedulesCollection = 'bus_schedules';
 
   CollectionReference<Map<String, dynamic>>? get _ridesRef =>
       _firestore?.collection(ridesCollection);
@@ -44,6 +45,9 @@ class PilotFirebaseService {
 
   CollectionReference<Map<String, dynamic>>? get _busesRef =>
       _firestore?.collection(busesCollection);
+
+  CollectionReference<Map<String, dynamic>>? get _busSchedulesRef =>
+      _firestore?.collection(busSchedulesCollection);
 
   /// Streams available campus vehicles dynamically from Firebase "locations".
   Stream<List<VehicleCart>> streamAvailableCarts() {
@@ -261,6 +265,18 @@ class PilotFirebaseService {
     if (ref == null) return Stream.value([]);
     return ref.snapshots().map((snap) {
       return snap.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    });
+  }
+
+  /// Streams customized day bus schedule from "bus_schedules" for a specific dayId.
+  Stream<Map<String, dynamic>?> streamBusScheduleForDay(String dayId) {
+    final ref = _busSchedulesRef;
+    if (ref == null) return Stream.value(null);
+    return ref.doc(dayId).snapshots().map((snap) {
+      if (snap.exists && snap.data() != null) {
+        return {'id': snap.id, ...snap.data()!};
+      }
+      return null;
     });
   }
 

@@ -50,6 +50,12 @@ class MainActivity : FlutterActivity(), LocationListener {
                 "checkPermission" -> {
                     result.success(hasPermission())
                 }
+                "isLocationEnabled" -> {
+                    val lm = locationManager ?: (getSystemService(Context.LOCATION_SERVICE) as LocationManager)
+                    val gps = try { lm.isProviderEnabled(LocationManager.GPS_PROVIDER) } catch (e: Exception) { false }
+                    val net = try { lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) } catch (e: Exception) { false }
+                    result.success(gps || net)
+                }
                 "getCurrentLocation" -> {
                     val loc = lastLocation ?: getBestLocation()
                     if (loc != null) {

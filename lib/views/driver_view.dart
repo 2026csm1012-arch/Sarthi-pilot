@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sarthi_pilot/controllers/driver_controller.dart';
+import 'package:sarthi_pilot/models/bus_ticket.dart';
 import 'package:sarthi_pilot/models/driver_user.dart';
 import 'package:sarthi_pilot/models/ride_request.dart';
 import 'package:sarthi_pilot/views/driver_profile_view.dart';
@@ -71,13 +72,49 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     );
   }
 
-  void _toggleOnline() {
-    _controller.toggleOnlineStatus();
-    if (_controller.isOnline) {
-      _showToast('You are ONLINE: Vehicle is active & visible on campus map.');
-    } else {
-      _showToast('You are OFFLINE: Vehicle is inactive (off-duty).');
+  void _toggleOnline() async {
+    final success = await _controller.toggleOnlineStatus();
+    if (!success && mounted) {
+      final msg = _controller.gpsErrorMessage ??
+          'GPS location is required to go online. Please enable GPS in device settings.';
+      _showGpsRequiredDialog(msg);
     }
+  }
+
+  void _showGpsRequiredDialog(String message) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.location_off_rounded, color: Color(0xFFDC2626), size: 22),
+            SizedBox(width: 8),
+            Text(
+              'GPS Required',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 13, color: Color(0xFF3F3F46)),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF18181B),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onAcceptRequest(dynamic id) {
@@ -904,397 +941,646 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     );
   }
 
-  // ================= 2. CITY BUS SCANNER PANEL =================
+  // ================= 2. CITY BUS DRIVER PANEL (MINIMAL) =================
   Widget _buildBusPanel() {
-    final availableBuses = _controller.availableBuses;
-    final selectedBus = availableBuses
-        .where((b) => b['id'] == _controller.selectedBusId)
-        .firstOrNull;
-
-    final currentRouteTitle = selectedBus != null
-        ? '${selectedBus['route']} (${selectedBus['registrationNumber'] ?? 'PB-12'})'
-        : 'Campus Bus Transit';
-
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Bus Route Selector Card
-        if (availableBuses.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFAFAFA),
-              border: Border.all(color: const Color(0xFFE4E4E7)),
-              borderRadius: BorderRadius.circular(14),
+        // 1. Online / Offline Duty Switch
+        _buildOnlineDutyButton(),
+        const SizedBox(height: 10),
+
+        // 2. Compact GPS Status Pill
+        _buildCompactGpsBar(),
+        const SizedBox(height: 14),
+
+        // 3. Today's Bus Route (Today Only)
+        _buildTodayBusRouteCard(),
+        const SizedBox(height: 14),
+
+        // 4. Current Stop Console (Clean & Direct)
+        _buildMinimalStopConsole(),
+        const SizedBox(height: 14),
+
+        // 5. Scan Ticket Section (Clean)
+        _buildMinimalScanSection(),
+        const SizedBox(height: 14),
+
+        // 6. Occupancy & Manifest (Clean & Compact)
+        _buildMinimalOccupancySection(),
+      ],
+    );
+  }
+
+  /// Compact single-line GPS status bar.
+  Widget _buildCompactGpsBar() {
+    final isLive = _controller.isBroadcasting;
+    final hasRealGps = _controller.hasRealGpsFix;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isLive ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isLive ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: isLive
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFF94A3B8),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isLive
+                    ? (hasRealGps
+                          ? 'GPS Active · Broadcasting'
+                          : 'GPS Initializing...')
+                    : 'GPS Standby · Offline',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isLive
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            'Battery: ${_controller.battery}%',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF64748B),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.directions_bus_rounded,
-                        size: 16, color: Color(0xFF059669)),
-                    SizedBox(width: 6),
-                    Text(
-                      'Assigned Bus Route',
-                      style: TextStyle(
-                        fontSize: 11,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Today's route card strictly showing today's trips.
+  Widget _buildTodayBusRouteCard() {
+    final buses = _controller.availableBuses;
+    final selectedId = _controller.selectedBusId;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "TODAY'S ROUTE",
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              Text(
+                DriverController.formattedTodayDate,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (buses.isEmpty)
+            const Text(
+              'No trips scheduled for today',
+              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            )
+          else
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: buses.any((b) => b['id'] == selectedId)
+                    ? selectedId
+                    : buses.first['id'] as String?,
+                isExpanded: true,
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 20,
+                  color: Color(0xFF64748B),
+                ),
+                items: buses.map((bus) {
+                  final route = bus['route'] as String? ?? 'Bus Route';
+                  final reg = bus['registrationNumber'] as String? ?? '';
+                  final dep = bus['departureTime'] as String? ?? '';
+                  return DropdownMenuItem<String>(
+                    value: bus['id'] as String?,
+                    child: Text(
+                      dep.isNotEmpty
+                          ? '$dep · $route ($reg)'
+                          : '$route ($reg)',
+                      style: const TextStyle(
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF71717A),
+                        color: Color(0xFF0F172A),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) _controller.setSelectedBusId(val);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Minimal stop console: clear stop name, one-tap next stop button, and simple exit/board counts.
+  Widget _buildMinimalStopConsole() {
+    final stops = _controller.currentBusStops;
+    final currentStop = _controller.currentReachedStop;
+    final dropOffs = _controller.currentStopDropOffs;
+    final pickups = _controller.currentStopPickups;
+    final currentIndex = _controller.currentStopIndex;
+    final hasNext = _controller.hasNextStop;
+    final isFinal = _controller.isFinalStop;
+    final nextName = _controller.nextStopName;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isFinal
+                    ? 'FINAL DESTINATION'
+                    : 'STOP ${currentIndex + 1} OF ${stops.length}',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                  color: isFinal
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFF64748B),
+                ),
+              ),
+              if (stops.isNotEmpty)
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: (currentIndex >= 0 && currentIndex < stops.length)
+                        ? currentIndex
+                        : (stops.isNotEmpty ? 0 : null),
+                    icon: const Icon(
+                      Icons.arrow_drop_down,
+                      size: 18,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF64748B),
+                    ),
+                    items: stops.asMap().entries.map((e) {
+                      return DropdownMenuItem<int>(
+                        value: e.key,
+                        child: Text(e.value),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) _controller.setReachedStopIndex(val);
+                    },
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            currentStop,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+
+          if (hasNext) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Next: $nextName',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+          ],
+
+          const SizedBox(height: 14),
+
+          // Solid Next Stop button
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: hasNext
+                  ? () => _controller.nextStop()
+                  : () => _controller.setReachedStopIndex(0),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: hasNext
+                    ? const Color(0xFF059669)
+                    : const Color(0xFF475569),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                hasNext ? 'Next Stop: $nextName ➔' : 'Restart Route at Stop 1',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+
+          if (_controller.hasPreviousStop) ...[
+            const SizedBox(height: 4),
+            Center(
+              child: TextButton(
+                onPressed: () => _controller.previousStop(),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: const Color(0xFF94A3B8),
+                ),
+                child: Text(
+                  '← Previous: ${_controller.previousStopName}',
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          // Compact activity pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFDC2626),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${dropOffs.length} Exiting',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E293B),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: availableBuses.any((b) => b['id'] == _controller.selectedBusId)
-                        ? _controller.selectedBusId
-                        : availableBuses.first['id'] as String?,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down,
-                        size: 20, color: Color(0xFF71717A)),
-                    items: availableBuses.map((bus) {
-                      final route = bus['route'] as String? ?? 'Bus Route';
-                      final reg = bus['registrationNumber'] as String? ?? '';
-                      final dep = bus['departureTime'] as String? ?? '';
-                      return DropdownMenuItem<String>(
-                        value: bus['id'] as String?,
-                        child: Text(
-                          '$route ($reg · $dep)',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF18181B),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) _controller.setSelectedBusId(val);
-                    },
-                  ),
+                Container(height: 16, width: 1, color: const Color(0xFFCBD5E1)),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF059669),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${pickups.length} Boarding',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
 
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFA),
-            border: Border.all(color: const Color(0xFFE4E4E7)),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
+          if (dropOffs.isNotEmpty || pickups.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...dropOffs.map(
+              (t) => _buildStopPassengerItem(ticket: t, isDropOff: true),
+            ),
+            ...pickups.map(
+              (t) => _buildStopPassengerItem(ticket: t, isDropOff: false),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Minimal stop passenger item with clean row formatting.
+  Widget _buildStopPassengerItem({
+    required BusTicket ticket,
+    required bool isDropOff,
+  }) {
+    final isConfirmed = ticket.isConfirmed;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
             children: [
-              // Circle QR Avatar
-              Container(
-                width: 60,
-                height: 60,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFD1FAE5),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.qr_code_scanner,
-                  size: 32,
-                  color: Color(0xFF059669),
-                ),
+              Icon(
+                isDropOff
+                    ? Icons.arrow_downward_rounded
+                    : Icons.arrow_upward_rounded,
+                size: 13,
+                color: isDropOff
+                    ? const Color(0xFFDC2626)
+                    : const Color(0xFF059669),
               ),
-
-              const SizedBox(height: 12),
-
-              const Text(
-                'Scan Student Ticket',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF18181B),
-                ),
-              ),
-              const SizedBox(height: 2),
+              const SizedBox(width: 6),
               Text(
-                'Verify & Confirm Onboarding for $currentRouteTitle',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF71717A)),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Camera QR Scanner Trigger
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _openCameraScanner,
-                  icon: const Icon(Icons.qr_code_scanner, size: 20),
-                  label: const Text(
-                    'Open Camera QR Scanner',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF059669),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Divider between QR Camera and Manual entry
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: Color(0xFFE4E4E7))),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      'OR ENTER TICKET ID',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ),
-                  const Expanded(child: Divider(color: Color(0xFFE4E4E7))),
-                ],
-              ),
-
-              const SizedBox(height: 14),
-
-              // Ticket ID input field
-              TextField(
-                controller: _ticketInputController,
-                textAlign: TextAlign.center,
-                textCapitalization: TextCapitalization.characters,
+                ticket.passengerName.isNotEmpty &&
+                        ticket.passengerName != 'Student'
+                    ? '${ticket.passengerName} (${ticket.id})'
+                    : ticket.id,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
+                  color: Color(0xFF0F172A),
                 ),
-                decoration: InputDecoration(
-                  hintText: 'Enter ticket ID (e.g. TKT-123456)',
-                  hintStyle: const TextStyle(
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: isConfirmed
+                  ? const Color(0xFFDCFCE7)
+                  : const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              isConfirmed ? 'BOARDED' : 'UNSCANNED',
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+                color: isConfirmed
+                    ? const Color(0xFF15803D)
+                    : const Color(0xFFB45309),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Minimal scan section: clear button and compact ticket ID input.
+  Widget _buildMinimalScanSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _openCameraScanner,
+              icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+              label: const Text(
+                'Scan QR Ticket',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F172A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          _buildScanResultBox(),
+
+          const SizedBox(height: 8),
+
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ticketInputController,
+                  textAlign: TextAlign.center,
+                  textCapitalization: TextCapitalization.characters,
+                  style: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: 0,
-                    color: Color(0xFFA1A1AA),
+                    fontWeight: FontWeight.w600,
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE4E4E7)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE4E4E7)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF059669),
-                      width: 1.5,
+                  decoration: InputDecoration(
+                    hintText: 'Or enter Ticket ID (TKT-...)',
+                    hintStyle: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF059669)),
                     ),
                   ),
+                  onSubmitted: (_) => _onVerifyTicket(),
                 ),
-                onSubmitted: (_) => _onVerifyTicket(),
               ),
-
-              const SizedBox(height: 12),
-
-              // Verify button
+              const SizedBox(width: 8),
               SizedBox(
-                width: double.infinity,
+                height: 38,
                 child: OutlinedButton(
                   onPressed: () => _onVerifyTicket(),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF059669),
-                    side: const BorderSide(color: Color(0xFF059669)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: const Text(
-                    'Verify & Check-In Passenger',
+                    'Check-In',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
             ],
           ),
-        ),
+        ],
+      ),
+    );
+  }
 
-        const SizedBox(height: 12),
+  /// Minimal occupancy section: clean progress bar and passenger list.
+  Widget _buildMinimalOccupancySection() {
+    final tickets = _controller.currentBusTickets;
+    final onboarded = _controller.onboardedCount;
+    final total = _controller.totalSeats;
 
-        // Result status box
-        _buildScanResultBox(),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'OCCUPANCY',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              Text(
+                '$onboarded / $total seats',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
 
-        const SizedBox(height: 20),
-
-        // Passenger Manifest Section
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Boarded Passenger Manifest',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF52525B),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: total > 0 ? (onboarded / total).clamp(0.0, 1.0) : 0.0,
+              minHeight: 4,
+              backgroundColor: const Color(0xFFF1F5F9),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF059669),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD1FAE5),
-                borderRadius: BorderRadius.circular(6),
+          ),
+
+          if (tickets.where((t) => t.isConfirmed).isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(color: Color(0xFFF1F5F9), height: 1),
+            const SizedBox(height: 8),
+            Text(
+              'Boarded Passengers (${tickets.where((t) => t.isConfirmed).length}):',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF64748B),
               ),
-              child: Text(
-                '${_controller.onboardedCount} / ${_controller.totalSeats} Boarded',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF047857),
+            ),
+            const SizedBox(height: 6),
+            ...tickets.where((t) => t.isConfirmed).map(
+              (t) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      t.passengerName.isNotEmpty &&
+                              t.passengerName != 'Student'
+                          ? '${t.passengerName} (${t.id})'
+                          : t.id,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    Text(
+                      '${t.pickup} → ${t.drop}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 8),
-
-        if (_controller.currentBusTickets.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(14),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFAFAFA),
-              border: Border.all(color: const Color(0xFFE4E4E7)),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Center(
-              child: Text(
-                'No passengers onboard yet',
-                style: TextStyle(fontSize: 12, color: Color(0xFFA1A1AA)),
-              ),
-            ),
-          )
-        else
-          ..._controller.currentBusTickets.map(
-            (t) => Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFAFAFA),
-                border: Border.all(color: const Color(0xFFE4E4E7)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              t.id,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF18181B),
-                              ),
-                            ),
-                            if (t.passengerName.isNotEmpty &&
-                                t.passengerName != 'Student') ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF4F4F5),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  t.passengerName,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF3F3F46),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        if (t.pickup.isNotEmpty || t.drop.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              '${t.pickup} ➔ ${t.drop}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF047857),
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        Text(
-                          '${t.route} · ${t.busNo}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFF71717A),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: t.status == 'Valid'
-                          ? const Color(0xFFFEF3C7)
-                          : const Color(0xFFD1FAE5),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      t.status,
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: t.status == 'Valid'
-                            ? const Color(0xFF92400E)
-                            : const Color(0xFF065F46),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
+        ],
+      ),
     );
   }
-
-
 
   Widget _buildScanResultBox() {
     Color bgColor = const Color(0xFFFAFAFA);
@@ -1317,11 +1603,11 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: bgColor,
         border: Border.all(color: borderColor),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         _controller.scanResultText,
