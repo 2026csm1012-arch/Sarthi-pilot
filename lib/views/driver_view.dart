@@ -158,16 +158,16 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
       listenable: _controller,
       builder: (context, _) {
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: const Color(0xFFF4FCF9),
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: const Color(0xFFF4FCF9),
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             toolbarHeight: 68,
             titleSpacing: 16,
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(1),
-              child: Container(color: const Color(0xFFF1F5F9), height: 1),
+              child: Container(color: const Color(0xFFE5E7EB), height: 1),
             ),
             title: Row(
               children: [
@@ -175,14 +175,15 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
+                    color: const Color(0xFFECFDF5),
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFA7F3D0)),
                   ),
                   child: const Center(
                     child: Icon(
                       Icons.directions_bus_rounded,
-                      color: Color(0xFF047857),
-                      size: 26,
+                      color: Color(0xFF059669),
+                      size: 24,
                     ),
                   ),
                 ),
@@ -192,12 +193,12 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                   mainAxisSize: MainAxisSize.min,
                   children: const [
                     Text(
-                      'PILOT',
+                      'Sarthi Pilot',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.8,
-                        color: Color(0xFF0F172A),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.2,
+                        color: Color(0xFF1F2937),
                       ),
                     ),
                     SizedBox(height: 1),
@@ -206,7 +207,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF64748B),
+                        color: Color(0xFF6B7280),
                       ),
                     ),
                   ],
@@ -298,39 +299,40 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
               children: [
                 // Assigned Service Role Banner (Fixed strictly by driver email)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: _controller.isBusMode
-                        ? const Color(0xFFEFF6FF)
-                        : const Color(0xFFECFDF5),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _controller.isBusMode
-                          ? const Color(0xFFBFDBFE)
-                          : const Color(0xFFA7F3D0),
-                    ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x08000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
-                          color: _controller.isBusMode
-                              ? const Color(0xFFDBEAFE)
-                              : const Color(0xFFD1FAE5),
-                          shape: BoxShape.circle,
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFA7F3D0)),
                         ),
-                        child: Icon(
-                          _controller.isBusMode
-                              ? Icons.directions_bus_rounded
-                              : Icons.electric_rickshaw_rounded,
-                          color: _controller.isBusMode
-                              ? const Color(0xFF1D4ED8)
-                              : const Color(0xFF047857),
-                          size: 18,
+                        child: Center(
+                          child: Icon(
+                            _controller.isBusMode
+                                ? Icons.directions_bus_rounded
+                                : Icons.electric_rickshaw_rounded,
+                            color: const Color(0xFF059669),
+                            size: 22,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,25 +341,19 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                               _controller.isBusMode
                                   ? 'City Bus Transit Service'
                                   : 'EV Cart Campus Transit',
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: const TextStyle(
+                                fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: _controller.isBusMode
-                                    ? const Color(0xFF1E3A8A)
-                                    : const Color(0xFF064E3B),
+                                color: Color(0xFF0F172A),
                               ),
                             ),
-                            const SizedBox(height: 1),
+                            const SizedBox(height: 2),
                             Text(
-                              _controller.isBusMode
-                                  ? 'Role bound to ${widget.driverUser.email}'
-                                  : 'Role bound to ${widget.driverUser.email}',
-                              style: TextStyle(
-                                fontSize: 10,
+                              widget.driverUser.email,
+                              style: const TextStyle(
+                                fontSize: 11,
                                 fontWeight: FontWeight.w500,
-                                color: _controller.isBusMode
-                                    ? const Color(0xFF3B82F6)
-                                    : const Color(0xFF059669),
+                                color: Color(0xFF6B7280),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -366,25 +362,19 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.85),
+                          color: const Color(0xFFECFDF5),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: _controller.isBusMode
-                                ? const Color(0xFF93C5FD)
-                                : const Color(0xFF86EFAC),
-                          ),
+                          border: Border.all(color: const Color(0xFFA7F3D0)),
                         ),
                         child: Text(
-                          _controller.isBusMode ? 'BUS MODE' : 'EV CART',
-                          style: TextStyle(
+                          _controller.isBusMode ? 'BUS PILOT' : 'CART PILOT',
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.5,
-                            color: _controller.isBusMode
-                                ? const Color(0xFF1D4ED8)
-                                : const Color(0xFF047857),
+                            color: Color(0xFF065F46),
                           ),
                         ),
                       ),
@@ -407,14 +397,14 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     );
   }
 
-  // Long rectangular button: Green when Online (active) and Red when Offline (inactive)
+  // Long rectangular button: Emerald when Online (active) and Red when Offline (inactive)
   Widget _buildOnlineDutyButton() {
     final isOnline = _controller.isOnline;
-    final color = isOnline ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    final color = isOnline ? const Color(0xFF059669) : const Color(0xFFDC2626);
 
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 48,
       child: ElevatedButton(
         onPressed: _toggleOnline,
         style: ElevatedButton.styleFrom(
@@ -422,7 +412,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
@@ -433,16 +423,16 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
               isOnline
                   ? Icons.check_circle_rounded
                   : Icons.power_settings_new_rounded,
-              size: 20,
+              size: 18,
               color: Colors.white,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Text(
               isOnline
                   ? 'ONLINE • VEHICLE ACTIVE'
                   : 'OFFLINE • VEHICLE INACTIVE',
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
                 color: Colors.white,
@@ -495,14 +485,14 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             padding: const EdgeInsets.all(16),
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFFFAFAFA),
-              border: Border.all(color: const Color(0xFFE4E4E7)),
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Center(
               child: Text(
                 'No active ride requests',
-                style: TextStyle(fontSize: 12, color: Color(0xFFA1A1AA)),
+                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
               ),
             ),
           )
@@ -538,11 +528,18 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
   Widget _buildRequestItem(RideRequest req) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        border: Border.all(color: const Color(0xFFE4E4E7)),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -554,17 +551,17 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                 Text(
                   '${req.from} → ${req.to}',
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF18181B),
+                    color: Color(0xFF0F172A),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   req.time,
                   style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFFA1A1AA),
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -575,7 +572,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             onPressed: () => _onRejectRequest(req.id),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFFDC2626),
-              side: const BorderSide(color: Color(0xFFFCA5A5)),
+              side: const BorderSide(color: Color(0xFFFECDD3)),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -713,7 +710,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
 
     String actionLabel = 'Mark Arrived at Pickup';
     IconData actionIcon = Icons.location_on_rounded;
-    Color buttonColor = const Color(0xFF2563EB);
+    Color buttonColor = const Color(0xFF059669);
 
     if (ride.status == 'arriving') {
       actionLabel = 'Start Trip (Passenger Onboard)';
@@ -722,16 +719,23 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     } else if (ride.status == 'in_progress') {
       actionLabel = 'Complete Ride (Arrived at Drop)';
       actionIcon = Icons.check_circle_rounded;
-      buttonColor = const Color(0xFF16A34A);
+      buttonColor = const Color(0xFF059669);
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        border: Border.all(color: const Color(0xFF93C5FD)),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -740,25 +744,27 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1D4ED8),
+                  color: const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFA7F3D0)),
                 ),
                 child: Text(
                   'ACTIVE TRIP · ${ride.status.toUpperCase()}',
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    letterSpacing: 0.5,
+                    color: Color(0xFF065F46),
                   ),
                 ),
               ),
               IconButton(
                 icon: const Icon(
                   Icons.close,
-                  size: 16,
-                  color: Color(0xFF64748B),
+                  size: 18,
+                  color: Color(0xFF94A3B8),
                 ),
                 onPressed: () {
                   _controller.cancelActiveRide();
@@ -769,23 +775,24 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            'Trip: ${ride.pickup} ➔ ${ride.drop}',
+            '${ride.pickup} ➔ ${ride.drop}',
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+              color: Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 2),
           Text(
             'Passenger: ${ride.userName} (${ride.id})',
-            style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
+            height: 44,
             child: ElevatedButton.icon(
               onPressed: () {
                 _controller.advanceRideStatus();
@@ -796,9 +803,8 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                 backgroundColor: buttonColor,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 10),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -813,14 +819,19 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     final hasRealGps = _controller.hasRealGpsFix;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isLive ? const Color(0xFFF0FDF4) : const Color(0xFFFAFAFA),
-        border: Border.all(
-          color: isLive ? const Color(0xFF86EFAC) : const Color(0xFFE4E4E7),
-        ),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -831,12 +842,12 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
               Row(
                 children: [
                   Container(
-                    width: 10,
-                    height: 10,
+                    width: 8,
+                    height: 8,
                     decoration: BoxDecoration(
                       color: isLive
-                          ? const Color(0xFF16A34A)
-                          : const Color(0xFFA1A1AA),
+                          ? const Color(0xFF059669)
+                          : const Color(0xFF94A3B8),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -846,10 +857,10 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
+                      letterSpacing: 0.6,
                       color: isLive
-                          ? const Color(0xFF15803D)
-                          : const Color(0xFF71717A),
+                          ? const Color(0xFF065F46)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -867,69 +878,70 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Device Battery: ${_controller.battery}%',
+                    'Battery: ${_controller.battery}%',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF52525B),
+                      color: Color(0xFF64748B),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             'Current Zone: ${_controller.currentWaypointName}',
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF18181B),
+              color: Color(0xFF0F172A),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Text(
-            'Coordinates: ${_controller.latitude.toStringAsFixed(6)}° N, ${_controller.longitude.toStringAsFixed(6)}° E',
+            '${_controller.latitude.toStringAsFixed(6)}° N, ${_controller.longitude.toStringAsFixed(6)}° E',
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF3F3F46),
+              color: Color(0xFF334155),
             ),
           ),
           const SizedBox(height: 2),
           Text(
             'Source: ${hasRealGps ? 'Phone GPS Sensor (Live Hardware)' : 'Initializing GPS...'} · Bearing: ${_controller.heading.toInt()}°',
-            style: const TextStyle(fontSize: 10, color: Color(0xFF71717A)),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: isLive ? const Color(0xFFDCFCE7) : const Color(0xFFF4F4F5),
-              borderRadius: BorderRadius.circular(8),
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFF1F5F9)),
             ),
             child: Row(
               children: [
                 Icon(
                   isLive ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-                  size: 14,
+                  size: 15,
                   color: isLive
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFF71717A),
+                      ? const Color(0xFF059669)
+                      : const Color(0xFF94A3B8),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     isLive
-                        ? 'Broadcasting live 6-digit coordinates to "locations"'
+                        ? 'Broadcasting live coordinates to "locations"'
                         : 'Offline · Toggle online duty button above to broadcast',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: isLive
-                          ? const Color(0xFF15803D)
-                          : const Color(0xFF71717A),
+                          ? const Color(0xFF065F46)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                 ),
@@ -978,13 +990,18 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     final hasRealGps = _controller.hasRealGpsFix;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isLive ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isLive ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -996,7 +1013,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                 height: 8,
                 decoration: BoxDecoration(
                   color: isLive
-                      ? const Color(0xFF16A34A)
+                      ? const Color(0xFF059669)
                       : const Color(0xFF94A3B8),
                   shape: BoxShape.circle,
                 ),
@@ -1005,26 +1022,40 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
               Text(
                 isLive
                     ? (hasRealGps
-                          ? 'GPS Active · Broadcasting'
+                          ? 'GPS Active · Hardware Fix'
                           : 'GPS Initializing...')
                     : 'GPS Standby · Offline',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: isLive
-                      ? const Color(0xFF15803D)
+                      ? const Color(0xFF065F46)
                       : const Color(0xFF64748B),
                 ),
               ),
             ],
           ),
-          Text(
-            'Battery: ${_controller.battery}%',
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF64748B),
-            ),
+          Row(
+            children: [
+              Icon(
+                _controller.isCharging
+                    ? Icons.battery_charging_full_rounded
+                    : Icons.battery_std_rounded,
+                size: 14,
+                color: _controller.battery > 20
+                    ? const Color(0xFF059669)
+                    : const Color(0xFFDC2626),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Battery: ${_controller.battery}%',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1037,11 +1068,18 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     final selectedId = _controller.selectedBusId;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1050,7 +1088,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                "TODAY'S ROUTE",
+                "TODAY'S SCHEDULE",
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
@@ -1058,56 +1096,72 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                   color: Color(0xFF64748B),
                 ),
               ),
-              Text(
-                DriverController.formattedTodayDate,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2563EB),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFA7F3D0)),
+                ),
+                child: Text(
+                  DriverController.formattedTodayDate,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF065F46),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           if (buses.isEmpty)
             const Text(
               'No trips scheduled for today',
               style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
             )
           else
-            DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: buses.any((b) => b['id'] == selectedId)
-                    ? selectedId
-                    : buses.first['id'] as String?,
-                isExpanded: true,
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 20,
-                  color: Color(0xFF64748B),
-                ),
-                items: buses.map((bus) {
-                  final route = bus['route'] as String? ?? 'Bus Route';
-                  final reg = bus['registrationNumber'] as String? ?? '';
-                  final dep = bus['departureTime'] as String? ?? '';
-                  return DropdownMenuItem<String>(
-                    value: bus['id'] as String?,
-                    child: Text(
-                      dep.isNotEmpty
-                          ? '$dep · $route ($reg)'
-                          : '$route ($reg)',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF0F172A),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: buses.any((b) => b['id'] == selectedId)
+                      ? selectedId
+                      : buses.first['id'] as String?,
+                  isExpanded: true,
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                    color: Color(0xFF64748B),
+                  ),
+                  items: buses.map((bus) {
+                    final route = bus['route'] as String? ?? 'Bus Route';
+                    final reg = bus['registrationNumber'] as String? ?? '';
+                    final dep = bus['departureTime'] as String? ?? '';
+                    return DropdownMenuItem<String>(
+                      value: bus['id'] as String?,
+                      child: Text(
+                        dep.isNotEmpty
+                            ? '$dep · $route ($reg)'
+                            : '$route ($reg)',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0F172A),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) _controller.setSelectedBusId(val);
-                },
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) _controller.setSelectedBusId(val);
+                  },
+                ),
               ),
             ),
         ],
@@ -1130,8 +1184,15 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1217,7 +1278,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: Text(
@@ -1237,7 +1298,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                 onPressed: () => _controller.previousStop(),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  foregroundColor: const Color(0xFF94A3B8),
+                  foregroundColor: const Color(0xFF64748B),
                 ),
                 child: Text(
                   '← Previous: ${_controller.previousStopName}',
@@ -1255,6 +1316,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFF1F5F9)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1280,7 +1342,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-                Container(height: 16, width: 1, color: const Color(0xFFCBD5E1)),
+                Container(height: 16, width: 1, color: const Color(0xFFE2E8F0)),
                 Row(
                   children: [
                     Container(
@@ -1361,9 +1423,14 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
               color: isConfirmed
-                  ? const Color(0xFFDCFCE7)
-                  : const Color(0xFFFEF3C7),
+                  ? const Color(0xFFECFDF5)
+                  : const Color(0xFFFFFBEB),
               borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: isConfirmed
+                    ? const Color(0xFFA7F3D0)
+                    : const Color(0xFFFDE68A),
+              ),
             ),
             child: Text(
               isConfirmed ? 'BOARDED' : 'UNSCANNED',
@@ -1371,7 +1438,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                 fontSize: 8,
                 fontWeight: FontWeight.w700,
                 color: isConfirmed
-                    ? const Color(0xFF15803D)
+                    ? const Color(0xFF065F46)
                     : const Color(0xFFB45309),
               ),
             ),
@@ -1387,8 +1454,15 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1404,21 +1478,22 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F172A),
+                backgroundColor: const Color(0xFF059669),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
           ),
 
-          const SizedBox(height: 8),
+          if (_controller.scanResultText.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildScanResultBox(),
+          ],
 
-          _buildScanResultBox(),
-
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
           Row(
             children: [
@@ -1444,15 +1519,15 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                       vertical: 10,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: Color(0xFF059669)),
                     ),
                   ),
@@ -1461,14 +1536,14 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
               ),
               const SizedBox(width: 8),
               SizedBox(
-                height: 38,
+                height: 42,
                 child: OutlinedButton(
                   onPressed: () => _onVerifyTicket(),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF0F172A),
                     side: const BorderSide(color: Color(0xFFCBD5E1)),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   child: const Text(
@@ -1494,8 +1569,15 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1528,7 +1610,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
               value: total > 0 ? (onboarded / total).clamp(0.0, 1.0) : 0.0,
-              minHeight: 4,
+              minHeight: 5,
               backgroundColor: const Color(0xFFF1F5F9),
               valueColor: const AlwaysStoppedAnimation<Color>(
                 Color(0xFF059669),
@@ -1583,27 +1665,27 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
   }
 
   Widget _buildScanResultBox() {
-    Color bgColor = const Color(0xFFFAFAFA);
-    Color borderColor = const Color(0xFFE4E4E7);
-    Color textColor = const Color(0xFF71717A);
+    Color bgColor = const Color(0xFFF8FAFC);
+    Color borderColor = const Color(0xFFE2E8F0);
+    Color textColor = const Color(0xFF64748B);
 
     if (_controller.scanResultType == 'success') {
       bgColor = const Color(0xFFECFDF5);
       borderColor = const Color(0xFFA7F3D0);
-      textColor = const Color(0xFF047857);
+      textColor = const Color(0xFF065F46);
     } else if (_controller.scanResultType == 'warning') {
       bgColor = const Color(0xFFFFFBEB);
       borderColor = const Color(0xFFFDE68A);
       textColor = const Color(0xFFB45309);
     } else if (_controller.scanResultType == 'error') {
-      bgColor = const Color(0xFFFFF1F2);
+      bgColor = const Color(0xFFFEF2F2);
       borderColor = const Color(0xFFFECDD3);
-      textColor = const Color(0xFFBE123C);
+      textColor = const Color(0xFF991B1B);
     }
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: bgColor,
         border: Border.all(color: borderColor),

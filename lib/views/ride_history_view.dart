@@ -31,9 +31,9 @@ class RideHistoryView extends StatelessWidget {
         final verifiedTickets = tickets.where((t) => t.isConfirmed).toList();
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: const Color(0xFFF4FCF9),
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: const Color(0xFFF4FCF9),
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             leading: const BackButton(color: Color(0xFF18181B)),
@@ -64,7 +64,7 @@ class RideHistoryView extends StatelessWidget {
             ),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(1),
-              child: Container(color: const Color(0xFFE4E4E7), height: 1),
+              child: Container(color: const Color(0xFFE5E7EB), height: 1),
             ),
           ),
           body: SafeArea(
@@ -241,17 +241,24 @@ class RideHistoryView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4E4E7)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           metrics[0],
-          Container(height: 36, width: 1, color: const Color(0xFFE4E4E7)),
+          Container(height: 36, width: 1, color: const Color(0xFFE5E7EB)),
           metrics[1],
-          Container(height: 36, width: 1, color: const Color(0xFFE4E4E7)),
+          Container(height: 36, width: 1, color: const Color(0xFFE5E7EB)),
           metrics[2],
         ],
       ),

@@ -109,9 +109,9 @@ class DriverProfileView extends StatelessWidget {
         final batteryColor = _getBatteryColor(battery);
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8FAFC),
+          backgroundColor: const Color(0xFFF4FCF9),
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: const Color(0xFFF4FCF9),
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             leading: const BackButton(color: Color(0xFF0F172A)),
@@ -140,7 +140,7 @@ class DriverProfileView extends StatelessWidget {
             ),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(1),
-              child: Container(color: const Color(0xFFE2E8F0), height: 1),
+              child: Container(color: const Color(0xFFE5E7EB), height: 1),
             ),
             actions: [
               Container(
