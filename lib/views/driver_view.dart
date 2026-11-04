@@ -1083,36 +1083,44 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFA7F3D0)),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.directions_bus_rounded,
-                        color: Color(0xFF059669),
-                        size: 16,
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFA7F3D0)),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.directions_bus_rounded,
+                          color: Color(0xFF059669),
+                          size: 16,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    "TODAY'S BUS SCHEDULE",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6,
-                      color: Color(0xFF64748B),
+                    const SizedBox(width: 8),
+                    const Flexible(
+                      child: Text(
+                        "TODAY'S BUS SCHEDULE",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -1370,20 +1378,17 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     }
   }
 
-  /// 3. Minimal Ticket System Card (scan QR + manual verify + occupancy badge).
+  /// 3. Minimal Ticket System Card (Ticket number, OK button, QR scanner option).
   Widget _buildMinimalTicketCard() {
-    final onboarded = _controller.onboardedCount;
-    final total = _controller.totalSeats;
-
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x08000000),
+            color: Color(0x06000000),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -1391,127 +1396,115 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'TICKET CHECK-IN',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.6,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '$onboarded / $total Onboarded',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF065F46),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Primary Scan Button
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _openCameraScanner,
-              icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-              label: const Text(
-                'Scan QR Ticket',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF059669),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-
-          if (_controller.scanResultText.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildScanResultBox(),
-          ],
-
-          const SizedBox(height: 10),
-
-          // Compact Manual Ticket Code input
-          Row(
-            children: [
+              // Ticket Number input field
               Expanded(
-                child: TextField(
-                  controller: _ticketInputController,
-                  textAlign: TextAlign.center,
-                  textCapitalization: TextCapitalization.characters,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                child: SizedBox(
+                  height: 46,
+                  child: TextField(
+                    controller: _ticketInputController,
+                    textCapitalization: TextCapitalization.characters,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
+                    ),
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(
+                        Icons.confirmation_number_outlined,
+                        size: 18,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      hintText: 'Ticket number',
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF059669), width: 1.5),
+                      ),
+                    ),
+                    onSubmitted: (_) => _onVerifyTicket(),
                   ),
-                  decoration: InputDecoration(
-                    hintText: 'Enter Ticket ID (TKT-...)',
-                    hintStyle: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF94A3B8),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFF059669)),
-                    ),
-                  ),
-                  onSubmitted: (_) => _onVerifyTicket(),
                 ),
               ),
               const SizedBox(width: 8),
+              // OK button (confirm manual ticket number)
               SizedBox(
-                height: 42,
-                child: OutlinedButton(
+                height: 46,
+                child: ElevatedButton(
                   onPressed: () => _onVerifyTicket(),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0F172A),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF059669),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: const Text(
-                    'Check-In',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    'OK',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // QR scan option button
+              SizedBox(
+                height: 46,
+                width: 46,
+                child: Material(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: _openCameraScanner,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFA7F3D0)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.qr_code_scanner_rounded,
+                          size: 22,
+                          color: Color(0xFF059669),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ],
           ),
+          if (_controller.scanResultType != 'idle' &&
+              _controller.scanResultText.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildScanResultBox(),
+          ],
         ],
       ),
     );
@@ -1546,43 +1539,65 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                isFinal
-                    ? 'FINAL DESTINATION'
-                    : 'STOP ${currentIndex + 1} OF ${stops.length}',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.6,
-                  color: isFinal
-                      ? const Color(0xFFDC2626)
-                      : const Color(0xFF64748B),
+              Flexible(
+                child: Text(
+                  isFinal
+                      ? 'FINAL DESTINATION'
+                      : 'STOP ${currentIndex + 1} OF ${stops.length}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                    color: isFinal
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF64748B),
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               if (stops.isNotEmpty)
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: (currentIndex >= 0 && currentIndex < stops.length)
-                        ? currentIndex
-                        : (stops.isNotEmpty ? 0 : null),
-                    icon: const Icon(
-                      Icons.arrow_drop_down,
-                      size: 18,
-                      color: Color(0xFF94A3B8),
+                Flexible(
+                  child: Container(
+                    height: 28,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF64748B),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        isDense: true,
+                        isExpanded: true,
+                        value: (currentIndex >= 0 && currentIndex < stops.length)
+                            ? currentIndex
+                            : (stops.isNotEmpty ? 0 : null),
+                        icon: const Icon(
+                          Icons.arrow_drop_down,
+                          size: 16,
+                          color: Color(0xFF64748B),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF334155),
+                        ),
+                        items: stops.asMap().entries.map((e) {
+                          return DropdownMenuItem<int>(
+                            value: e.key,
+                            child: Text(
+                              '${e.key + 1}. ${e.value}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) _controller.setReachedStopIndex(val);
+                        },
+                      ),
                     ),
-                    items: stops.asMap().entries.map((e) {
-                      return DropdownMenuItem<int>(
-                        value: e.key,
-                        child: Text(e.value, overflow: TextOverflow.ellipsis),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) _controller.setReachedStopIndex(val);
-                    },
                   ),
                 ),
             ],
@@ -1616,22 +1631,10 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
               Expanded(
                 child: SizedBox(
                   height: 48,
-                  child: OutlinedButton.icon(
+                  child: OutlinedButton(
                     onPressed: _controller.hasPreviousStop
                         ? () => _controller.previousStop()
                         : null,
-                    icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                    label: Text(
-                      _controller.hasPreviousStop
-                          ? 'Prev: ${_controller.previousStopName}'
-                          : 'First Stop',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF1E293B),
                       disabledForegroundColor: const Color(0xFF94A3B8),
@@ -1643,7 +1646,27 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.arrow_back_rounded, size: 16),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            _controller.hasPreviousStop
+                                ? 'Prev: ${_controller.previousStopName}'
+                                : 'First Stop',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1666,7 +1689,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
