@@ -48,6 +48,15 @@ class DeviceLocationService {
     }
   }
 
+  /// Opens the device location settings screen (settings panel).
+  Future<void> openLocationSettings() async {
+    try {
+      await _methodChannel.invokeMethod('openLocationSettings');
+    } catch (e) {
+      debugPrint('DeviceLocationService openLocationSettings: $e');
+    }
+  }
+
   /// Queries the most recent GPS location fix from the phone.
   Future<Map<String, double>?> getCurrentLocation() async {
     try {

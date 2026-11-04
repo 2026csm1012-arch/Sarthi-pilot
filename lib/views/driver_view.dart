@@ -73,15 +73,27 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
   }
 
   void _toggleOnline() async {
+    // If going online, verify device location service is turned ON
+    if (!_controller.isOnline) {
+      final isGpsOn = await _controller.checkLocationEnabled();
+      if (!isGpsOn) {
+        if (!mounted) return;
+        _showLocationSettingsDialog(
+          'Location services are turned OFF. Please turn on Location in settings to go online.',
+        );
+        return;
+      }
+    }
+
     final success = await _controller.toggleOnlineStatus();
     if (!success && mounted) {
       final msg = _controller.gpsErrorMessage ??
-          'GPS location is required to go online. Please enable GPS in device settings.';
-      _showGpsRequiredDialog(msg);
+          'GPS location is required to go online. Please enable Location in phone settings.';
+      _showLocationSettingsDialog(msg);
     }
   }
 
-  void _showGpsRequiredDialog(String message) {
+  void _showLocationSettingsDialog(String message) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -91,7 +103,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             Icon(Icons.location_off_rounded, color: Color(0xFFDC2626), size: 22),
             SizedBox(width: 8),
             Text(
-              'GPS Required',
+              'Location Required',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
@@ -101,16 +113,25 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
           style: const TextStyle(fontSize: 13, color: Color(0xFF3F3F46)),
         ),
         actions: [
-          ElevatedButton(
+          TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _controller.openLocationSettings();
+            },
+            icon: const Icon(Icons.settings_rounded, size: 16),
+            label: const Text('Open Settings'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF18181B),
+              backgroundColor: const Color(0xFF059669),
               foregroundColor: Colors.white,
+              elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text('OK'),
           ),
         ],
       ),
@@ -188,29 +209,35 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text(
-                      'Sarthi Pilot',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.2,
-                        color: Color(0xFF1F2937),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'Sarthi Pilot',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.2,
+                          color: Color(0xFF1F2937),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    SizedBox(height: 1),
-                    Text(
-                      'IIT Ropar Transit',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF6B7280),
+                      SizedBox(height: 1),
+                      Text(
+                        'IIT Ropar Transit',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF6B7280),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -1006,36 +1033,44 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: isLive
-                      ? const Color(0xFF059669)
-                      : const Color(0xFF94A3B8),
-                  shape: BoxShape.circle,
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: isLive
+                        ? const Color(0xFF059669)
+                        : const Color(0xFF94A3B8),
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                isLive
-                    ? (hasRealGps
-                          ? 'GPS Active · Hardware Fix'
-                          : 'GPS Initializing...')
-                    : 'GPS Standby · Offline',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: isLive
-                      ? const Color(0xFF065F46)
-                      : const Color(0xFF64748B),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isLive
+                        ? (hasRealGps
+                              ? 'GPS Active · Hardware Fix'
+                              : 'GPS Initializing...')
+                        : 'GPS Standby · Offline',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isLive
+                          ? const Color(0xFF065F46)
+                          : const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 _controller.isCharging
@@ -1263,50 +1298,93 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
 
           const SizedBox(height: 14),
 
-          // Solid Next Stop button
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: hasNext
-                  ? () => _controller.nextStop()
-                  : () => _controller.setReachedStopIndex(0),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: hasNext
-                    ? const Color(0xFF059669)
-                    : const Color(0xFF475569),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          // Two prominent side-by-side buttons for BOTH Previous Stop and Next Stop
+          Row(
+            children: [
+              // Previous Stop Button
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _controller.hasPreviousStop
+                        ? () => _controller.previousStop()
+                        : null,
+                    icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                    label: Text(
+                      _controller.hasPreviousStop
+                          ? 'Prev: ${_controller.previousStopName}'
+                          : 'First Stop',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1E293B),
+                      disabledForegroundColor: const Color(0xFF94A3B8),
+                      side: BorderSide(
+                        color: _controller.hasPreviousStop
+                            ? const Color(0xFFCBD5E1)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                  ),
                 ),
               ),
-              child: Text(
-                hasNext ? 'Next Stop: $nextName ➔' : 'Restart Route at Stop 1',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+              const SizedBox(width: 10),
+              // Next Stop Button
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: hasNext
+                        ? () => _controller.nextStop()
+                        : () => _controller.setReachedStopIndex(0),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: hasNext
+                          ? const Color(0xFF059669)
+                          : const Color(0xFF475569),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            hasNext ? 'Next: $nextName' : 'Restart Route',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          hasNext
+                              ? Icons.arrow_forward_rounded
+                              : Icons.replay_rounded,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-
-          if (_controller.hasPreviousStop) ...[
-            const SizedBox(height: 4),
-            Center(
-              child: TextButton(
-                onPressed: () => _controller.previousStop(),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  foregroundColor: const Color(0xFF64748B),
-                ),
-                child: Text(
-                  '← Previous: ${_controller.previousStopName}',
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ),
-            ),
-          ],
 
           const SizedBox(height: 12),
 
@@ -1394,31 +1472,38 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Icon(
-                isDropOff
-                    ? Icons.arrow_downward_rounded
-                    : Icons.arrow_upward_rounded,
-                size: 13,
-                color: isDropOff
-                    ? const Color(0xFFDC2626)
-                    : const Color(0xFF059669),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                ticket.passengerName.isNotEmpty &&
-                        ticket.passengerName != 'Student'
-                    ? '${ticket.passengerName} (${ticket.id})'
-                    : ticket.id,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF0F172A),
+          Expanded(
+            child: Row(
+              children: [
+                Icon(
+                  isDropOff
+                      ? Icons.arrow_downward_rounded
+                      : Icons.arrow_upward_rounded,
+                  size: 13,
+                  color: isDropOff
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFF059669),
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    ticket.passengerName.isNotEmpty &&
+                            ticket.passengerName != 'Student'
+                        ? '${ticket.passengerName} (${ticket.id})'
+                        : ticket.id,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
@@ -1637,16 +1722,21 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      t.passengerName.isNotEmpty &&
-                              t.passengerName != 'Student'
-                          ? '${t.passengerName} (${t.id})'
-                          : t.id,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF1E293B),
+                    Expanded(
+                      child: Text(
+                        t.passengerName.isNotEmpty &&
+                                t.passengerName != 'Student'
+                            ? '${t.passengerName} (${t.id})'
+                            : t.id,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF1E293B),
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       '${t.pickup} → ${t.drop}',
                       style: const TextStyle(

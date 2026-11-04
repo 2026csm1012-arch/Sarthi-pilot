@@ -504,6 +504,46 @@ class DriverController extends ChangeNotifier {
     _checkInitialDeviceLocation();
   }
 
+  /// Opens the phone's native location settings screen.
+  Future<void> openLocationSettings() async {
+    await _locationService.openLocationSettings();
+  }
+
+  /// Checks whether native location provider / GPS is enabled on the device.
+  Future<bool> checkLocationEnabled() async {
+    return await _locationService.isLocationServiceEnabled();
+  }
+
+  /// Checks whether location permission is granted.
+  Future<bool> checkLocationPermission() async {
+    return await _locationService.checkPermission();
+  }
+
+  /// Determines if a departure time string (e.g. "08:15 AM", "03:10 PM", "14:30") has passed today.
+  /// A buffer of 15 minutes is added so that boarding / departing buses are not abruptly hidden.
+  static bool isDepartureTimeGone(String timeStr, {int bufferMinutes = 15}) {
+    if (timeStr.trim().isEmpty) return false;
+    final now = DateTime.now();
+    try {
+      final t = timeStr.trim().toUpperCase();
+      final isPm = t.endsWith('PM');
+      final isAm = t.endsWith('AM');
+      final clean = t.replaceAll('AM', '').replaceAll('PM', '').trim();
+      final parts = clean.split(':');
+      if (parts.length >= 2) {
+        int hour = int.parse(parts[0].trim());
+        final minute = int.parse(parts[1].trim());
+        if (isPm && hour < 12) hour += 12;
+        if (isAm && hour == 12) hour = 0;
+        final dep = DateTime(now.year, now.month, now.day, hour, minute);
+        return now.isAfter(dep.add(Duration(minutes: bufferMinutes)));
+      }
+    } catch (e) {
+      debugPrint('Error parsing departure time "$timeStr": $e');
+    }
+    return false;
+  }
+
   /// Filters available buses strictly for today's schedule only.
   void _updateAvailableBuses() {
     final currentDay = todayDayId;
@@ -565,6 +605,18 @@ class DriverController extends ChangeNotifier {
       }).toList();
     }
 
+    // 3. Filter out buses whose departure time has already passed today
+    final upcomingBuses = _availableBuses.where((b) {
+      // If this bus is already selected by the driver, keep it so active trip isn't broken
+      if (b['id'] == _selectedBusId && _selectedBusId.isNotEmpty) {
+        return true;
+      }
+      final dep = b['departureTime'] as String? ?? '';
+      return !isDepartureTimeGone(dep);
+    }).toList();
+
+    _availableBuses = upcomingBuses;
+
     // Keep selection valid
     if (!_availableBuses.any((b) => b['id'] == _selectedBusId)) {
       _selectedBusId = _availableBuses.isNotEmpty
@@ -615,9 +667,18 @@ class DriverController extends ChangeNotifier {
           }
         }
         if (customTrips.isNotEmpty) {
-          _availableBuses = customTrips;
+          final filtered = customTrips.where((b) {
+            if (b['id'] == _selectedBusId && _selectedBusId.isNotEmpty) {
+              return true;
+            }
+            final dep = b['departureTime'] as String? ?? '';
+            return !isDepartureTimeGone(dep);
+          }).toList();
+          _availableBuses = filtered;
           if (!_availableBuses.any((b) => b['id'] == _selectedBusId)) {
-            _selectedBusId = _availableBuses.first['id'] as String? ?? '';
+            _selectedBusId = _availableBuses.isNotEmpty
+                ? (_availableBuses.first['id'] as String? ?? '')
+                : '';
             _currentStopIndex = 0;
           }
           notifyListeners();

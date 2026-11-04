@@ -56,6 +56,16 @@ class MainActivity : FlutterActivity(), LocationListener {
                     val net = try { lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) } catch (e: Exception) { false }
                     result.success(gps || net)
                 }
+                "openLocationSettings" -> {
+                    try {
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SETTINGS_ERROR", e.message, null)
+                    }
+                }
                 "getCurrentLocation" -> {
                     val loc = lastLocation ?: getBestLocation()
                     if (loc != null) {
