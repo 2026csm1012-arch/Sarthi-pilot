@@ -940,10 +940,47 @@ class DriverController extends ChangeNotifier {
     return true;
   }
 
+  // Bus trip active state
+  bool _isBusTripActive = false;
+  bool get isBusTripActive => _isBusTripActive;
+
+  /// Starts the bus trip: verifies location is enabled, enables live online broadcast,
+  /// sets trip active, and resets stop to Stop 1.
+  Future<bool> startBusTrip() async {
+    final isGpsOn = await checkLocationEnabled();
+    if (!isGpsOn) {
+      _gpsErrorMessage =
+          'Device location is turned OFF. Please turn on Location in settings to start trip.';
+      notifyListeners();
+      return false;
+    }
+
+    if (!_isOnline) {
+      final success = await toggleOnlineStatus();
+      if (!success) return false;
+    }
+
+    _isBusTripActive = true;
+    _currentStopIndex = 0;
+    _gpsErrorMessage = null;
+    notifyListeners();
+    return true;
+  }
+
+  /// Ends the active bus trip and takes vehicle offline.
+  Future<void> endBusTrip() async {
+    _isBusTripActive = false;
+    if (_isOnline) {
+      await toggleOnlineStatus();
+    }
+    notifyListeners();
+  }
+
   /// Immediately sets vehicle offline when app closes, detaches, or pauses.
   void setOfflineImmediate() {
-    if (_isOnline) {
+    if (_isOnline || _isBusTripActive) {
       _isOnline = false;
+      _isBusTripActive = false;
       _isBroadcasting = false;
       _locationService.stopListening();
       _heartbeatTimer?.cancel();
@@ -956,10 +993,11 @@ class DriverController extends ChangeNotifier {
   /// Automatically triggered whenever the device's location service (GPS) is turned OFF
   /// while the driver is online. Takes vehicle offline immediately and notifies listeners.
   void handleLocationDisabledWhileOnline() {
-    if (!_isOnline) return;
+    if (!_isOnline && !_isBusTripActive) return;
 
     debugPrint('Device location turned off. Taking driver offline immediately.');
     _isOnline = false;
+    _isBusTripActive = false;
     _isBroadcasting = false;
     _hasRealGpsFix = false;
     _locationService.stopListening();
