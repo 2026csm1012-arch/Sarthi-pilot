@@ -271,6 +271,7 @@ class DriverController extends ChangeNotifier {
     final bId = bus?['id'] as String? ?? _selectedBusId;
     final bRoute = bus?['route'] as String? ?? '';
     final bDepTime = bus?['departureTime'] as String? ?? '';
+    final bReg = bus?['registrationNumber'] as String? ?? '';
 
     if (bId.isEmpty && bRoute.isEmpty) return _tickets;
 
@@ -280,83 +281,75 @@ class DriverController extends ChangeNotifier {
         busId: bId,
         route: bRoute,
         depTime: bDepTime,
+        busRegistration: bReg,
       );
     }).toList();
   }
 
-  /// Checks whether a ticket strictly matches a specific bus route and departure time.
+  /// Checks whether a ticket matches a specific bus route and departure time.
   static bool isTicketMatchingBus(
     BusTicket t, {
     required String busId,
     required String route,
     required String depTime,
+    String? busRegistration,
   }) {
-    // 1. Departure time check
-    if (t.time.isNotEmpty && depTime.isNotEmpty) {
-      if (PilotFirebaseService.normalizeTime(t.time) !=
-          PilotFirebaseService.normalizeTime(depTime)) {
-        return false;
-      }
-    }
-
-    // 2. Destination check
-    final tDest = t.drop.isNotEmpty
-        ? t.drop
-        : PilotFirebaseService.extractDestination(t.route);
-    final bDest = PilotFirebaseService.extractDestination(route);
-    if (tDest.isNotEmpty && bDest.isNotEmpty) {
-      if (PilotFirebaseService.normalizeStr(tDest) !=
-          PilotFirebaseService.normalizeStr(bDest)) {
-        return false;
-      }
-    }
-
-    // 3. Origin check
-    final tOrig = t.pickup.isNotEmpty
-        ? t.pickup
-        : PilotFirebaseService.extractOrigin(t.route);
-    final bOrig = PilotFirebaseService.extractOrigin(route);
-    if (tOrig.isNotEmpty && bOrig.isNotEmpty) {
-      if (PilotFirebaseService.normalizeStr(tOrig) !=
-          PilotFirebaseService.normalizeStr(bOrig)) {
-        return false;
-      }
-    }
-
-    // 4. Conflicting Bus ID check
+    // 1. Direct Bus ID Match
     if (t.busId.isNotEmpty && busId.isNotEmpty) {
-      final tId = PilotFirebaseService.normalizeStr(t.busId);
-      final eId = PilotFirebaseService.normalizeStr(busId);
-      if (tId != eId && !eId.endsWith(tId) && !tId.endsWith(eId)) {
-        final tNum = RegExp(r'\d+').firstMatch(tId)?.group(0);
-        final eNum = RegExp(r'\d+').firstMatch(eId)?.group(0);
-        if (tNum != null && eNum != null && tNum != eNum) {
-          return false;
-        }
-      }
-    }
-
-    // 5. Positive confirmation
-    if (t.busId.isNotEmpty && busId.isNotEmpty) {
-      final tId = PilotFirebaseService.normalizeStr(t.busId);
-      final eId = PilotFirebaseService.normalizeStr(busId);
-      if (tId == eId || eId.endsWith(tId) || tId.endsWith(eId)) {
+      if (t.busId == busId ||
+          PilotFirebaseService.normalizeStr(t.busId) ==
+              PilotFirebaseService.normalizeStr(busId) ||
+          PilotFirebaseService.normalizeStr(busId)
+              .contains(PilotFirebaseService.normalizeStr(t.busId)) ||
+          PilotFirebaseService.normalizeStr(t.busId)
+              .contains(PilotFirebaseService.normalizeStr(busId))) {
         return true;
       }
     }
 
-    if (tDest.isNotEmpty &&
-        bDest.isNotEmpty &&
-        PilotFirebaseService.normalizeStr(tDest) ==
-            PilotFirebaseService.normalizeStr(bDest)) {
-      return true;
+    // 2. Departure Time Conflict Check
+    // If both specify departure times and they clearly conflict, reject
+    if (t.time.isNotEmpty && depTime.isNotEmpty) {
+      if (PilotFirebaseService.isTimeConflict(t.time, depTime)) {
+        return false;
+      }
     }
 
-    if (t.route.isNotEmpty &&
-        route.isNotEmpty &&
-        PilotFirebaseService.normalizeStr(t.route) ==
-            PilotFirebaseService.normalizeStr(route)) {
-      return true;
+    // 3. Route string match (normalized route title or route destination)
+    if (t.route.isNotEmpty && route.isNotEmpty) {
+      final tRouteNorm = PilotFirebaseService.cleanRoute(t.route);
+      final bRouteNorm = PilotFirebaseService.cleanRoute(route);
+
+      if (tRouteNorm == bRouteNorm ||
+          tRouteNorm.contains(bRouteNorm) ||
+          bRouteNorm.contains(tRouteNorm)) {
+        return true;
+      }
+
+      final tDest = PilotFirebaseService.cleanRoute(
+          PilotFirebaseService.extractDestination(t.route));
+      final bDest = PilotFirebaseService.cleanRoute(
+          PilotFirebaseService.extractDestination(route));
+
+      if (tDest.isNotEmpty && bDest.isNotEmpty && tDest == bDest) {
+        return true;
+      }
+    }
+
+    // 4. Registration number match if route destination does not conflict
+    if (busRegistration != null &&
+        busRegistration.isNotEmpty &&
+        t.busNo.isNotEmpty) {
+      if (PilotFirebaseService.normalizeStr(t.busNo) ==
+          PilotFirebaseService.normalizeStr(busRegistration)) {
+        final tDest = PilotFirebaseService.cleanRoute(
+            PilotFirebaseService.extractDestination(t.route));
+        final bDest = PilotFirebaseService.cleanRoute(
+            PilotFirebaseService.extractDestination(route));
+        if (tDest.isEmpty || bDest.isEmpty || tDest == bDest) {
+          return true;
+        }
+      }
     }
 
     return false;
@@ -1296,13 +1289,11 @@ class DriverController extends ChangeNotifier {
     );
 
     if (result['wrongBus'] == true) {
-      final tRoute = result['ticketRoute'] as String? ?? 'Another Route';
-      final tTime = result['ticketDepartureTime'] as String? ?? '';
-      final myRoute = result['expectedRoute'] as String? ?? currentRouteTitle;
-
+      final reason = result['reason'] as String?;
       _scanResultType = 'error';
-      _scanResultText =
-          '⛔ WRONG BUS / ROUTE!\nTicket $cleanCode is for:\n👉 $tRoute${tTime.isNotEmpty ? " ($tTime)" : ""}\n\nIt CANNOT be scanned on this bus ($myRoute).';
+      _scanResultText = reason != null && reason.isNotEmpty
+          ? '⛔ $reason'
+          : '⛔ WRONG BUS / ROUTE!\nTicket $cleanCode is for another bus and cannot be scanned on this trip ($currentRouteTitle).';
       notifyListeners();
       return false;
     }
@@ -1358,6 +1349,7 @@ class DriverController extends ChangeNotifier {
           busId: expectedBusId,
           route: expectedRoute ?? '',
           depTime: expectedDepTime ?? '',
+          busRegistration: expectedBusReg,
         );
 
         if (!matches) {
@@ -1377,7 +1369,7 @@ class DriverController extends ChangeNotifier {
         return true;
       } else {
         _scanResultType = 'error';
-        _scanResultText = '✕ Invalid Ticket ID ($cleanCode) or not registered for this bus.';
+        _scanResultText = '✕ Invalid Ticket ID ($cleanCode).';
         notifyListeners();
         return false;
       }

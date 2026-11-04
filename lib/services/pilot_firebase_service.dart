@@ -280,6 +280,18 @@ class PilotFirebaseService {
     });
   }
 
+  /// Cleans and standardizes route strings for comparison.
+  static String cleanRoute(String? r) {
+    if (r == null) return '';
+    return r
+        .toLowerCase()
+        .replaceAll('→', '->')
+        .replaceAll('–', '-')
+        .replaceAll('—', '-')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
   /// Static normalizer for departure times (e.g. "05:05 AM" -> "5:05AM", "05:05" -> "5:05").
   static String normalizeTime(String? timeStr) {
     if (timeStr == null) return '';
@@ -288,6 +300,15 @@ class PilotFirebaseService {
       t = t.substring(1);
     }
     return t;
+  }
+
+  /// Checks if two departure times conflict. Returns true ONLY if both are non-empty and clearly differ.
+  static bool isTimeConflict(String? t1, String? t2) {
+    if (t1 == null || t2 == null) return false;
+    final c1 = normalizeTime(t1);
+    final c2 = normalizeTime(t2);
+    if (c1.isEmpty || c2.isEmpty) return false;
+    return c1 != c2;
   }
 
   /// Normalizes strings for alphanumeric comparison (strips spacing, punctuation, case).
@@ -325,7 +346,7 @@ class PilotFirebaseService {
   }
 
   /// Verifies a student ticket code directly on Firestore and updates its status to 'Used'.
-  /// Enforces that the ticket MUST strictly match the driver's current bus or route.
+  /// Enforces that the ticket MUST match the driver's current bus or route.
   Future<Map<String, dynamic>> verifyAndConfirmTicket({
     required String ticketId,
     String? driverId,
@@ -426,116 +447,69 @@ class PilotFirebaseService {
         : '';
     final fullAssignedName = '$assignedTitle$assignedTimeStr';
 
-    // STRICT ROUTE / BUS MATCHING CHECK
-    // Ensure the ticket belongs strictly to the driver's current bus and trip schedule
+    // ROUTE / BUS MATCHING CHECK
+    // Ensure the ticket belongs strictly to the driver's current bus
     if (expectedBusId != null && expectedBusId.isNotEmpty) {
-      // 1. Departure Time Mismatch Check
-      final normTicketTime = normalizeTime(ticketDepTime);
-      final normExpectedTime = normalizeTime(expectedDepartureTime);
-      if (normTicketTime.isNotEmpty &&
-          normExpectedTime.isNotEmpty &&
-          normTicketTime != normExpectedTime) {
-        return {
-          'success': false,
-          'wrongBus': true,
-          'ticketId': ticketId,
-          'userName': userName,
-          'ticketRoute': ticketRoute,
-          'ticketBusNo': ticketBusNo,
-          'ticketDepartureTime': ticketDepTime,
-          'expectedRoute': fullAssignedName,
-          'reason':
-              'Wrong Bus Trip!\nTicket is for $ticketDepTime departure, not for your $expectedDepartureTime trip.',
-        };
+      bool isMatch = false;
+
+      // 1. Direct Bus ID match (exact or normalized)
+      if (ticketBusId.isNotEmpty &&
+          (ticketBusId == expectedBusId ||
+           normalizeStr(ticketBusId) == normalizeStr(expectedBusId) ||
+           normalizeStr(expectedBusId).contains(normalizeStr(ticketBusId)) ||
+           normalizeStr(ticketBusId).contains(normalizeStr(expectedBusId)))) {
+        isMatch = true;
       }
 
-      // 2. Destination Mismatch Check
-      final ticketDest = ticketDrop.isNotEmpty ? ticketDrop : extractDestination(ticketRoute);
-      final expectedDest = extractDestination(expectedRoute ?? '');
-      if (ticketDest.isNotEmpty && expectedDest.isNotEmpty) {
-        if (normalizeStr(ticketDest) != normalizeStr(expectedDest)) {
-          return {
-            'success': false,
-            'wrongBus': true,
-            'ticketId': ticketId,
-            'userName': userName,
-            'ticketRoute': ticketRoute,
-            'ticketBusNo': ticketBusNo,
-            'ticketDepartureTime': ticketDepTime,
-            'expectedRoute': fullAssignedName,
-            'reason':
-                'Wrong Bus Route!\nTicket is for destination "$ticketDest", not for this bus ("$expectedDest").',
-          };
-        }
-      }
-
-      // 3. Origin Mismatch Check
-      final ticketOrig = ticketPickup.isNotEmpty ? ticketPickup : extractOrigin(ticketRoute);
-      final expectedOrig = extractOrigin(expectedRoute ?? '');
-      if (ticketOrig.isNotEmpty && expectedOrig.isNotEmpty) {
-        if (normalizeStr(ticketOrig) != normalizeStr(expectedOrig)) {
-          return {
-            'success': false,
-            'wrongBus': true,
-            'ticketId': ticketId,
-            'userName': userName,
-            'ticketRoute': ticketRoute,
-            'ticketBusNo': ticketBusNo,
-            'ticketDepartureTime': ticketDepTime,
-            'expectedRoute': fullAssignedName,
-            'reason':
-                'Wrong Bus Route!\nTicket origin is "$ticketOrig", not for this route ("$expectedOrig").',
-          };
-        }
-      }
-
-      // 4. Conflicting Bus ID Check (e.g. bus-1 vs bus-2, or m-1 vs m-2)
-      if (ticketBusId.isNotEmpty && expectedBusId.isNotEmpty) {
-        final normTicketId = normalizeStr(ticketBusId);
-        final normExpectedId = normalizeStr(expectedBusId);
-        if (normTicketId != normExpectedId &&
-            !normExpectedId.endsWith(normTicketId) &&
-            !normTicketId.endsWith(normExpectedId)) {
-          final ticketNum = RegExp(r'\d+').firstMatch(normTicketId)?.group(0);
-          final expectedNum = RegExp(r'\d+').firstMatch(normExpectedId)?.group(0);
-          if (ticketNum != null && expectedNum != null && ticketNum != expectedNum) {
-            return {
-              'success': false,
-              'wrongBus': true,
-              'ticketId': ticketId,
-              'userName': userName,
-              'ticketRoute': ticketRoute,
-              'ticketBusNo': ticketBusNo,
-              'ticketDepartureTime': ticketDepTime,
-              'expectedRoute': fullAssignedName,
-              'reason':
-                  'Wrong Bus!\nTicket is for bus $ticketBusId, not for your bus ($expectedBusId).',
-            };
+      // 2. Route string match (normalized route title or route destination)
+      if (!isMatch && ticketRoute.isNotEmpty && expectedRoute != null && expectedRoute.isNotEmpty) {
+        final tClean = cleanRoute(ticketRoute);
+        final eClean = cleanRoute(expectedRoute);
+        if (tClean == eClean || tClean.contains(eClean) || eClean.contains(tClean)) {
+          isMatch = true;
+        } else {
+          final tDest = cleanRoute(extractDestination(ticketRoute));
+          final eDest = cleanRoute(extractDestination(expectedRoute));
+          if (tDest.isNotEmpty && eDest.isNotEmpty && tDest == eDest) {
+            isMatch = true;
           }
         }
       }
 
-      // 5. Positive Confirmation Check: Ensure positive alignment with this bus
-      bool hasPositiveMatch = false;
-      if (ticketBusId.isNotEmpty &&
-          (normalizeStr(ticketBusId) == normalizeStr(expectedBusId) ||
-           normalizeStr(expectedBusId).endsWith(normalizeStr(ticketBusId)))) {
-        hasPositiveMatch = true;
-      }
-      if (!hasPositiveMatch &&
-          ticketRoute.isNotEmpty &&
-          expectedRoute != null &&
-          normalizeStr(extractDestination(ticketRoute)) == normalizeStr(extractDestination(expectedRoute))) {
-        hasPositiveMatch = true;
-      }
-      if (!hasPositiveMatch &&
-          ticketDest.isNotEmpty &&
-          expectedDest.isNotEmpty &&
-          normalizeStr(ticketDest) == normalizeStr(expectedDest)) {
-        hasPositiveMatch = true;
+      // 3. Vehicle Registration Number match (if route destinations do not conflict)
+      if (!isMatch &&
+          expectedBusRegistration != null &&
+          expectedBusRegistration.isNotEmpty &&
+          ticketBusNo.isNotEmpty) {
+        if (normalizeStr(ticketBusNo) == normalizeStr(expectedBusRegistration)) {
+          final tDest = cleanRoute(extractDestination(ticketRoute));
+          final eDest = cleanRoute(extractDestination(expectedRoute ?? ''));
+          if (tDest.isEmpty || eDest.isEmpty || tDest == eDest) {
+            isMatch = true;
+          }
+        }
       }
 
-      if (!hasPositiveMatch) {
+      // 4. Departure Time Conflict Validation:
+      // If route or registration matched, verify that departure time does not conflict
+      if (isMatch && isTimeConflict(ticketDepTime, expectedDepartureTime)) {
+        if (ticketBusId.isEmpty || ticketBusId != expectedBusId) {
+          return {
+            'success': false,
+            'wrongBus': true,
+            'ticketId': ticketId,
+            'userName': userName,
+            'ticketRoute': ticketRoute,
+            'ticketBusNo': ticketBusNo,
+            'ticketDepartureTime': ticketDepTime,
+            'expectedRoute': fullAssignedName,
+            'reason':
+                'Wrong Bus Trip!\nTicket is for $ticketDepTime departure, not for this $expectedDepartureTime trip.',
+          };
+        }
+      }
+
+      if (!isMatch) {
         return {
           'success': false,
           'wrongBus': true,
@@ -546,7 +520,7 @@ class PilotFirebaseService {
           'ticketDepartureTime': ticketDepTime,
           'expectedRoute': fullAssignedName,
           'reason':
-              'Wrong Bus!\nTicket ($ticketRoute ${ticketDepTime.isNotEmpty ? "· $ticketDepTime" : ""}) does not belong to your bus ($fullAssignedName).',
+              'Wrong Bus!\nTicket is for "${ticketRoute.isNotEmpty ? ticketRoute : ticketBusNo}"${ticketDepTime.isNotEmpty ? " ($ticketDepTime)" : ""}, not for your bus ($fullAssignedName).',
         };
       }
     }
