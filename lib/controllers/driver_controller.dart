@@ -184,10 +184,35 @@ class DriverController extends ChangeNotifier {
     return stops[_currentStopIndex];
   }
 
+  /// Pushes live bus stop progress, current stop index, active stop names,
+  /// GPS coordinates, and seat count directly to the Firestore "buses" collection.
+  /// This ensures all user/student apps tracking this bus see the live stop status in real-time.
+  void syncBusStopToFirestore({bool isCompleted = false}) {
+    final bus = selectedBus;
+    final bId = bus?['id'] as String? ?? _selectedBusId;
+    final bRoute = bus?['route'] as String? ?? '';
+    final bReg = bus?['registrationNumber'] as String? ?? '';
+    _firebaseService.syncBusStopProgress(
+      busId: bId,
+      busRoute: bRoute,
+      busRegistration: bReg,
+      currentStopIndex: _currentStopIndex,
+      currentStopName: currentReachedStop,
+      nextStopName: nextStopName,
+      allStopNames: currentBusStops,
+      onboardedCount: onboardedCount,
+      speed: _isBusTripActive ? '32 km/h' : '0 km/h',
+      latitude: _latitude,
+      longitude: _longitude,
+      isCompleted: isCompleted || isFinalStop,
+    );
+  }
+
   void setReachedStopIndex(int index) {
     final stops = currentBusStops;
     if (index >= 0 && index < stops.length) {
       _currentStopIndex = index;
+      syncBusStopToFirestore();
       notifyListeners();
     }
   }
@@ -196,6 +221,7 @@ class DriverController extends ChangeNotifier {
     final stops = currentBusStops;
     if (stops.isNotEmpty && _currentStopIndex < stops.length - 1) {
       _currentStopIndex++;
+      syncBusStopToFirestore();
       notifyListeners();
     }
   }
@@ -203,6 +229,7 @@ class DriverController extends ChangeNotifier {
   void previousStop() {
     if (_currentStopIndex > 0) {
       _currentStopIndex--;
+      syncBusStopToFirestore();
       notifyListeners();
     }
   }
@@ -285,6 +312,10 @@ class DriverController extends ChangeNotifier {
       );
     }).toList();
   }
+
+  /// All currently onboarded passengers (confirmed/scanned) on this bus.
+  List<BusTicket> get currentBusOnboardedTickets =>
+      currentBusTickets.where((t) => t.isConfirmed).toList();
 
   /// Checks whether a ticket matches a specific bus route and departure time.
   static bool isTicketMatchingBus(
@@ -369,6 +400,9 @@ class DriverController extends ChangeNotifier {
 
   String _scanResultType = 'idle'; // 'idle', 'success', 'warning', 'error'
   String get scanResultType => _scanResultType;
+
+  String? _lastScannedTicketId;
+  String? get lastScannedTicketId => _lastScannedTicketId;
 
   // In-memory data collections
   final List<RideRequest> _requests = [];
@@ -899,6 +933,9 @@ class DriverController extends ChangeNotifier {
       batteryLevel: _battery,
       isOnline: _isOnline,
     );
+    if (_isBusTripActive) {
+      syncBusStopToFirestore();
+    }
   }
 
   /// Updates selected cart assignment.
@@ -1031,6 +1068,7 @@ class DriverController extends ChangeNotifier {
     _isBusTripActive = true;
     _currentStopIndex = 0;
     _gpsErrorMessage = null;
+    syncBusStopToFirestore();
     notifyListeners();
     return true;
   }
@@ -1038,6 +1076,7 @@ class DriverController extends ChangeNotifier {
   /// Ends the active bus trip and takes vehicle offline.
   Future<void> endBusTrip() async {
     _isBusTripActive = false;
+    syncBusStopToFirestore(isCompleted: true);
     if (_isOnline) {
       await toggleOnlineStatus();
     }
@@ -1271,6 +1310,8 @@ class DriverController extends ChangeNotifier {
       return false;
     }
 
+    _lastScannedTicketId = cleanCode;
+
     final currentBus = selectedBus;
     final expectedBusId = currentBus?['id'] as String? ?? _selectedBusId;
     final expectedRoute = currentBus?['route'] as String?;
@@ -1325,6 +1366,7 @@ class DriverController extends ChangeNotifier {
       _scanResultText =
           '✓ Ticket $cleanCode Verified Successfully!\nPassenger: $passenger ($pickup ➔ $destination)';
       _autoUpdateOccupancy();
+      syncBusStopToFirestore();
       notifyListeners();
       return true;
     } else if (result['alreadyUsed'] == true) {
@@ -1365,6 +1407,7 @@ class DriverController extends ChangeNotifier {
         _scanResultText =
             '✓ Ticket $cleanCode Verified Successfully!\nPassenger: ${t.passengerName}';
         _autoUpdateOccupancy();
+        syncBusStopToFirestore();
         notifyListeners();
         return true;
       } else {
@@ -1380,6 +1423,31 @@ class DriverController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Manually unboards a passenger: resets ticket status in Firestore back to 'Valid',
+  /// clears driver confirmation, and updates local state.
+  Future<bool> unboardTicket(String ticketId) async {
+    final cleanCode = _parseTicketCode(ticketId);
+    if (cleanCode.isEmpty) return false;
+
+    final success = await _firebaseService.unboardTicket(ticketId: cleanCode);
+
+    // Update local ticket list
+    final idx = _tickets.indexWhere(
+      (t) => t.id.trim().toUpperCase() == cleanCode.trim().toUpperCase(),
+    );
+    if (idx != -1) {
+      _tickets[idx].status = 'Valid';
+    }
+
+    _scanResultType = 'warning';
+    _scanResultText = '✓ Passenger $cleanCode unboarded successfully.';
+    _lastScannedTicketId = null;
+    _autoUpdateOccupancy();
+    syncBusStopToFirestore();
+    notifyListeners();
+    return success;
   }
 
   void _autoUpdateOccupancy() {

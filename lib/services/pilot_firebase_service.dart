@@ -280,6 +280,166 @@ class PilotFirebaseService {
     });
   }
 
+  /// Synchronizes live bus stop progress, active stop names, and stops array to the Firestore "buses" collection.
+  /// This ensures passenger apps tracking this bus route see the live stop status (Departed, Approaching, On Time) in real time.
+  Future<void> syncBusStopProgress({
+    required String busId,
+    String? busRoute,
+    String? busRegistration,
+    required int currentStopIndex,
+    required String currentStopName,
+    String? nextStopName,
+    List<String>? allStopNames,
+    int? onboardedCount,
+    String? speed,
+    double? latitude,
+    double? longitude,
+    bool isCompleted = false,
+  }) async {
+    final ref = _busesRef;
+    if (ref == null) return;
+
+    try {
+      final updateData = <String, dynamic>{
+        'currentStopIndex': currentStopIndex,
+        'currentStop': currentStopName,
+        'nextStop': nextStopName ?? '',
+        'currentLocation': currentStopName,
+        'lastUpdated': 'Just now',
+        'isCompleted': isCompleted,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (speed != null) {
+        updateData['speed'] = speed;
+      }
+      if (latitude != null && longitude != null) {
+        updateData['latitude'] = double.parse(latitude.toStringAsFixed(6));
+        updateData['longitude'] = double.parse(longitude.toStringAsFixed(6));
+      }
+
+      void updateStopsStatus(Map<String, dynamic> docData, Map<String, dynamic> target) {
+        if (onboardedCount != null) {
+          final total = (docData['totalSeats'] as num?)?.toInt() ?? 30;
+          target['availableSeats'] = (total - onboardedCount).clamp(0, total);
+        }
+
+        final existingStops = docData['stops'];
+        if (existingStops is List && existingStops.isNotEmpty) {
+          final updatedStops = <dynamic>[];
+          for (int i = 0; i < existingStops.length; i++) {
+            final item = existingStops[i];
+            final isDeparted = i < currentStopIndex;
+            final isNext = i == currentStopIndex;
+            if (item is Map) {
+              final sMap = Map<String, dynamic>.from(item);
+              sMap['isDeparted'] = isDeparted;
+              sMap['isNext'] = isNext;
+              if (isDeparted) {
+                sMap['status'] = 'Departed';
+                sMap['statusText'] = 'Departed';
+              } else if (isNext) {
+                sMap['status'] = 'Approaching';
+                sMap['statusText'] = 'Approaching';
+              } else {
+                sMap['status'] = 'On Time';
+                sMap['statusText'] = 'On Time';
+              }
+              updatedStops.add(sMap);
+            } else {
+              final stopName = item.toString();
+              updatedStops.add({
+                'name': stopName,
+                'isDeparted': isDeparted,
+                'isNext': isNext,
+                'status': isDeparted ? 'Departed' : (isNext ? 'Approaching' : 'On Time'),
+                'statusText': isDeparted ? 'Departed' : (isNext ? 'Approaching' : 'On Time'),
+              });
+            }
+          }
+          target['stops'] = updatedStops;
+        } else if (allStopNames != null && allStopNames.isNotEmpty) {
+          final generatedStops = <Map<String, dynamic>>[];
+          for (int i = 0; i < allStopNames.length; i++) {
+            final isDeparted = i < currentStopIndex;
+            final isNext = i == currentStopIndex;
+            generatedStops.add({
+              'name': allStopNames[i],
+              'isDeparted': isDeparted,
+              'isNext': isNext,
+              'status': isDeparted ? 'Departed' : (isNext ? 'Approaching' : 'On Time'),
+              'statusText': isDeparted ? 'Departed' : (isNext ? 'Approaching' : 'On Time'),
+            });
+          }
+          target['stops'] = generatedStops;
+        }
+      }
+
+      // 1. Direct doc reference by busId
+      if (busId.isNotEmpty) {
+        final docRef = ref.doc(busId);
+        final snap = await docRef.get();
+        if (snap.exists && snap.data() != null) {
+          final target = Map<String, dynamic>.from(updateData);
+          updateStopsStatus(snap.data()!, target);
+          await docRef.set(target, SetOptions(merge: true));
+          debugPrint('Synced bus $busId stop progress in buses to stop $currentStopIndex ($currentStopName)');
+          return;
+        }
+      }
+
+      // 2. Query by route
+      if (busRoute != null && busRoute.isNotEmpty) {
+        final q = await ref.where('route', isEqualTo: busRoute).limit(1).get();
+        if (q.docs.isNotEmpty) {
+          final doc = q.docs.first;
+          final target = Map<String, dynamic>.from(updateData);
+          updateStopsStatus(doc.data(), target);
+          await doc.reference.set(target, SetOptions(merge: true));
+          debugPrint('Synced bus by route "$busRoute" stop $currentStopIndex to Firestore.');
+          return;
+        }
+
+        // Fuzzy/normalized route matching fallback
+        final allDocs = await ref.get();
+        final cExpected = cleanRoute(busRoute);
+        for (final doc in allDocs.docs) {
+          final docRoute = cleanRoute(doc.data()['route'] as String?);
+          if (docRoute == cExpected || docRoute.contains(cExpected) || cExpected.contains(docRoute)) {
+            final target = Map<String, dynamic>.from(updateData);
+            updateStopsStatus(doc.data(), target);
+            await doc.reference.set(target, SetOptions(merge: true));
+            debugPrint('Synced bus by normalized route match to Firestore.');
+            return;
+          }
+        }
+      }
+
+      // 3. Query by registrationNumber
+      if (busRegistration != null && busRegistration.isNotEmpty) {
+        final q = await ref.where('registrationNumber', isEqualTo: busRegistration).limit(1).get();
+        if (q.docs.isNotEmpty) {
+          final doc = q.docs.first;
+          final target = Map<String, dynamic>.from(updateData);
+          updateStopsStatus(doc.data(), target);
+          await doc.reference.set(target, SetOptions(merge: true));
+          debugPrint('Synced bus by registration "$busRegistration" stop $currentStopIndex to Firestore.');
+          return;
+        }
+      }
+
+      // 4. If busId is given and doc didn't exist yet, create or merge directly
+      if (busId.isNotEmpty) {
+        final target = Map<String, dynamic>.from(updateData);
+        updateStopsStatus({}, target);
+        await ref.doc(busId).set(target, SetOptions(merge: true));
+        debugPrint('Synced bus $busId directly to Firestore buses collection.');
+      }
+    } catch (e) {
+      debugPrint('syncBusStopProgress notice: $e');
+    }
+  }
+
   /// Cleans and standardizes route strings for comparison.
   static String cleanRoute(String? r) {
     if (r == null) return '';
@@ -558,6 +718,66 @@ class PilotFirebaseService {
       'pickup': ticketPickup,
       'destination': ticketDrop,
     };
+  }
+
+  /// Manually unboards a passenger: resets their ticket status in Firestore back to 'Valid' (isUsed: false).
+  /// This immediately updates the passenger's app to show the ticket as unboarded and ready.
+  Future<bool> unboardTicket({
+    required String ticketId,
+  }) async {
+    final ref = _ticketsRef;
+    if (ref == null) return false;
+
+    try {
+      final updateData = <String, dynamic>{
+        'isUsed': false,
+        'status': 'Valid',
+        'confirmedByDriverId': FieldValue.delete(),
+        'confirmedByDriverName': FieldValue.delete(),
+        'confirmedAt': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // 1. Direct doc reference
+      final docSnap = await ref.doc(ticketId).get();
+      if (docSnap.exists) {
+        await ref.doc(ticketId).update(updateData);
+        debugPrint('Ticket $ticketId unboarded in Firestore.');
+        return true;
+      }
+
+      // 2. Query by 'id' field
+      final query = await ref.where('id', isEqualTo: ticketId).limit(1).get();
+      if (query.docs.isNotEmpty) {
+        await query.docs.first.reference.update(updateData);
+        debugPrint('Ticket $ticketId unboarded in Firestore by id query.');
+        return true;
+      }
+
+      final queryUpper = await ref.where('id', isEqualTo: ticketId.toUpperCase()).limit(1).get();
+      if (queryUpper.docs.isNotEmpty) {
+        await queryUpper.docs.first.reference.update(updateData);
+        debugPrint('Ticket ${ticketId.toUpperCase()} unboarded in Firestore by uppercase id query.');
+        return true;
+      }
+
+      // Fallback: check documents matching ignoring case
+      final allDocs = await ref.limit(100).get();
+      for (final doc in allDocs.docs) {
+        final dId = doc.id.trim().toUpperCase();
+        final fId = (doc.data()['id'] as String? ?? '').trim().toUpperCase();
+        final target = ticketId.trim().toUpperCase();
+        if (dId == target || fId == target) {
+          await doc.reference.update(updateData);
+          debugPrint('Ticket $target unboarded via fallback match in doc ${doc.id}.');
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('unboardTicket notice: $e');
+      return false;
+    }
   }
 
   /// Real-time stream of booked & verified student tickets from the Firestore `tickets` collection.

@@ -1729,6 +1729,8 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     final currentStop = _controller.currentReachedStop;
     final dropOffs = _controller.currentStopDropOffs;
     final pickups = _controller.currentStopPickups;
+    final onboarded = _controller.currentBusOnboardedTickets;
+    final otherOnboarded = onboarded.where((t) => !dropOffs.any((d) => d.id == t.id)).toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1854,15 +1856,52 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             )
           else
             ...dropOffs.map((t) => _buildStopStudentRow(ticket: t, isBoarding: false)),
+
+          // 3. Other Onboarded Passengers Section
+          if (otherOnboarded.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Divider(color: Color(0xFFF1F5F9), height: 1),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2563EB),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Other Onboarded Passengers (${otherOnboarded.length})',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ...otherOnboarded.map(
+              (t) => _buildStopStudentRow(
+                ticket: t,
+                isBoarding: false,
+                isOnboardedList: true,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  /// Minimal row displaying student ticket details for the reached stop.
+  /// Minimal row displaying student ticket details for the reached stop with Board / Unboard actions.
   Widget _buildStopStudentRow({
     required BusTicket ticket,
     required bool isBoarding,
+    bool isOnboardedList = false,
   }) {
     final isConfirmed = ticket.isConfirmed;
 
@@ -1871,9 +1910,13 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
       child: Row(
         children: [
           Icon(
-            isBoarding ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+            isOnboardedList
+                ? Icons.airline_seat_recline_normal_rounded
+                : (isBoarding ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded),
             size: 14,
-            color: isBoarding ? const Color(0xFF059669) : const Color(0xFFDC2626),
+            color: isOnboardedList
+                ? const Color(0xFF2563EB)
+                : (isBoarding ? const Color(0xFF059669) : const Color(0xFFDC2626)),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1894,9 +1937,11 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                   ),
                 ),
                 Text(
-                  isBoarding
-                      ? 'Destination: ${ticket.drop}'
-                      : 'Boarded at: ${ticket.pickup}',
+                  isOnboardedList
+                      ? '${ticket.pickup} ➔ ${ticket.drop}'
+                      : (isBoarding
+                          ? 'Destination: ${ticket.drop}'
+                          : 'Boarded at: ${ticket.pickup}'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1908,32 +1953,93 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(
-              color: isBoarding
-                  ? (isConfirmed ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB))
-                  : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: isBoarding
-                    ? (isConfirmed ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A))
-                    : const Color(0xFFE2E8F0),
+
+          // Action Button: Unboard (if confirmed) or Board (if not confirmed and is boarding)
+          if (isConfirmed)
+            InkWell(
+              onTap: () async {
+                await _controller.unboardTicket(ticket.id);
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFFECDD3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.person_remove_rounded,
+                      size: 11,
+                      color: Color(0xFFDC2626),
+                    ),
+                    SizedBox(width: 3),
+                    Text(
+                      'Unboard',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFDC2626),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (isBoarding)
+            InkWell(
+              onTap: () async {
+                await _controller.verifyTicket(ticket.id);
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFA7F3D0)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_rounded,
+                      size: 11,
+                      color: Color(0xFF059669),
+                    ),
+                    SizedBox(width: 3),
+                    Text(
+                      'Board',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF059669),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Text(
+                'UNBOARDED',
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF64748B),
+                ),
               ),
             ),
-            child: Text(
-              isBoarding
-                  ? (isConfirmed ? 'BOARDED' : 'UNSCANNED')
-                  : 'EXITING',
-              style: TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-                color: isBoarding
-                    ? (isConfirmed ? const Color(0xFF065F46) : const Color(0xFFB45309))
-                    : const Color(0xFF475569),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -1958,6 +2064,12 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
       textColor = const Color(0xFF991B1B);
     }
 
+    final lastTid = _controller.lastScannedTicketId;
+    final showUnboardBtn = lastTid != null &&
+        lastTid.isNotEmpty &&
+        (_controller.scanResultType == 'warning' ||
+            _controller.scanResultType == 'success');
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1966,16 +2078,60 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
         border: Border.all(color: borderColor),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(
-        _controller.scanResultText,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: _controller.scanResultType == 'idle'
-              ? FontWeight.w400
-              : FontWeight.w600,
-          color: textColor,
-        ),
+      child: Column(
+        children: [
+          Text(
+            _controller.scanResultText,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: _controller.scanResultType == 'idle'
+                  ? FontWeight.w400
+                  : FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+          if (showUnboardBtn) ...[
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () async {
+                await _controller.unboardTicket(lastTid);
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _controller.scanResultType == 'warning'
+                        ? const Color(0xFFFDE68A)
+                        : const Color(0xFFA7F3D0),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.person_remove_rounded,
+                      size: 13,
+                      color: Color(0xFFDC2626),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Manual Unboard ($lastTid)',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFDC2626),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
