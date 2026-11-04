@@ -28,7 +28,8 @@ class RideHistoryView extends StatelessWidget {
             .where((r) => r.status == 'completed')
             .length;
         final tickets = controller.tickets;
-        final verifiedTickets = tickets.where((t) => t.isConfirmed).toList();
+        final verifiedTickets =
+            tickets.where((t) => t.isConfirmed || t.isCompleted).toList();
 
         return Scaffold(
           backgroundColor: const Color(0xFFF4FCF9),
@@ -521,7 +522,17 @@ class RideHistoryView extends StatelessWidget {
   }
 
   Widget _buildBusTicketCard(BusTicket ticket) {
+    final isCompleted = ticket.isCompleted;
     final isConfirmed = ticket.isConfirmed;
+    final statusLabel = isCompleted
+        ? 'COMPLETED'
+        : (isConfirmed ? 'BOARDED' : 'ACTIVE');
+    final statusColor = isCompleted
+        ? const Color(0xFF15803D)
+        : (isConfirmed ? const Color(0xFF1D4ED8) : const Color(0xFF64748B));
+    final statusBg = isCompleted
+        ? const Color(0xFFDCFCE7)
+        : (isConfirmed ? const Color(0xFFDBEAFE) : const Color(0xFFF1F5F9));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -547,13 +558,11 @@ class RideHistoryView extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    isConfirmed
+                    isCompleted || isConfirmed
                         ? Icons.check_circle_rounded
                         : Icons.confirmation_number_outlined,
                     size: 16,
-                    color: isConfirmed
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFF2563EB),
+                    color: statusColor,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -569,19 +578,15 @@ class RideHistoryView extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isConfirmed
-                      ? const Color(0xFFDCFCE7)
-                      : const Color(0xFFF1F5F9),
+                  color: statusBg,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  isConfirmed ? 'CONFIRMED' : 'ACTIVE',
+                  statusLabel,
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: isConfirmed
-                        ? const Color(0xFF15803D)
-                        : const Color(0xFF64748B),
+                    color: statusColor,
                     letterSpacing: 0.5,
                   ),
                 ),

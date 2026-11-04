@@ -1954,8 +1954,32 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
           ),
           const SizedBox(width: 8),
 
-          // Action Button: Unboard (if confirmed) or Board (if not confirmed and is boarding)
-          if (isConfirmed)
+          // Action Button: Completed, Unboard (if boarded), or Board (if valid/unscanned)
+          if (ticket.isCompleted)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle_rounded, size: 10, color: Color(0xFF059669)),
+                  SizedBox(width: 3),
+                  Text(
+                    'COMPLETED',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF059669),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (isConfirmed)
             InkWell(
               onTap: () async {
                 await _controller.unboardTicket(ticket.id);
@@ -2032,7 +2056,7 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: const Text(
-                'UNBOARDED',
+                'UNSCANNED',
                 style: TextStyle(
                   fontSize: 8,
                   fontWeight: FontWeight.w700,
@@ -2065,10 +2089,13 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     }
 
     final lastTid = _controller.lastScannedTicketId;
-    final showUnboardBtn = lastTid != null &&
-        lastTid.isNotEmpty &&
-        (_controller.scanResultType == 'warning' ||
-            _controller.scanResultType == 'success');
+    final lastTicket = lastTid != null && lastTid.isNotEmpty
+        ? _controller.currentBusTickets.cast<BusTicket?>().firstWhere(
+              (t) => t?.id.toUpperCase() == lastTid.toUpperCase(),
+              orElse: () => null,
+            )
+        : null;
+    final showUnboardBtn = lastTicket != null && lastTicket.isBoarded;
 
     return Container(
       width: double.infinity,

@@ -1370,8 +1370,11 @@ class DriverController extends ChangeNotifier {
       notifyListeners();
       return true;
     } else if (result['alreadyUsed'] == true) {
-      _scanResultType = 'warning';
-      _scanResultText = '⚠ Ticket $cleanCode was ALREADY USED!';
+      final isComp = result['isCompleted'] == true;
+      _scanResultType = isComp ? 'error' : 'warning';
+      _scanResultText = isComp
+          ? '⛔ Ticket $cleanCode has ALREADY BEEN COMPLETED / CONSUMED and cannot be used again!'
+          : '⚠ Ticket $cleanCode was ALREADY USED (Onboarded)!';
       notifyListeners();
       return false;
     } else if (result['reason'] == 'Firestore database connection not available.') {
@@ -1379,9 +1382,16 @@ class DriverController extends ChangeNotifier {
       final localIdx = _tickets.indexWhere((t) => t.id == cleanCode);
       if (localIdx != -1) {
         final t = _tickets[localIdx];
+        if (t.isCompleted) {
+          _scanResultType = 'error';
+          _scanResultText =
+              '⛔ Ticket $cleanCode has ALREADY BEEN COMPLETED / CONSUMED and cannot be used again!';
+          notifyListeners();
+          return false;
+        }
         if (t.isConfirmed) {
           _scanResultType = 'warning';
-          _scanResultText = '⚠ Ticket $cleanCode was ALREADY USED!';
+          _scanResultText = '⚠ Ticket $cleanCode was ALREADY USED (Onboarded)!';
           notifyListeners();
           return false;
         }
@@ -1425,8 +1435,9 @@ class DriverController extends ChangeNotifier {
     }
   }
 
-  /// Manually unboards a passenger: resets ticket status in Firestore back to 'Valid',
-  /// clears driver confirmation, and updates local state.
+  /// Manually unboards a passenger: marks ticket status in Firestore as 'Completed' (isUsed: true, isCompleted: true).
+  /// This consumes the ticket so it cannot be used further, decrements onboarded passenger count,
+  /// and updates available seats across all student apps.
   Future<bool> unboardTicket(String ticketId) async {
     final cleanCode = _parseTicketCode(ticketId);
     if (cleanCode.isEmpty) return false;
@@ -1438,11 +1449,11 @@ class DriverController extends ChangeNotifier {
       (t) => t.id.trim().toUpperCase() == cleanCode.trim().toUpperCase(),
     );
     if (idx != -1) {
-      _tickets[idx].status = 'Valid';
+      _tickets[idx].status = 'Completed';
     }
 
-    _scanResultType = 'warning';
-    _scanResultText = '✓ Passenger $cleanCode unboarded successfully.';
+    _scanResultType = 'success';
+    _scanResultText = '✓ Passenger $cleanCode unboarded. Ticket marked as Completed.';
     _lastScannedTicketId = null;
     _autoUpdateOccupancy();
     syncBusStopToFirestore();

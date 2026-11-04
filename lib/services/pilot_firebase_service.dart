@@ -579,7 +579,15 @@ class PilotFirebaseService {
     String? expectedBusRegistration,
     String? expectedDepartureTime,
   }) async {
-    final isUsed = data['isUsed'] == true || data['status'] == 'Used';
+    final rawStatus = (data['status'] as String? ?? '').trim();
+    final isCompleted = data['isCompleted'] == true ||
+        rawStatus.toLowerCase() == 'completed' ||
+        data['tripStatus'] == 'Completed';
+    final isUsed = data['isUsed'] == true ||
+        rawStatus == 'Used' ||
+        rawStatus.contains('Onboarded') ||
+        rawStatus.contains('Boarded') ||
+        isCompleted;
     final ticketId = data['id'] as String? ?? docRef.id;
     final userName = data['userName'] as String? ?? 'Student';
 
@@ -685,11 +693,25 @@ class PilotFirebaseService {
       }
     }
 
+    if (isCompleted) {
+      return {
+        'success': false,
+        'alreadyUsed': true,
+        'isCompleted': true,
+        'reason': 'Ticket $ticketId has ALREADY BEEN COMPLETED / CONSUMED and cannot be used again.',
+        'ticketId': ticketId,
+        'userName': userName,
+        'ticketRoute': ticketRoute,
+        'ticketBusNo': ticketBusNo,
+      };
+    }
+
     if (isUsed) {
       return {
         'success': false,
         'alreadyUsed': true,
-        'reason': 'Ticket $ticketId was ALREADY USED!',
+        'isCompleted': false,
+        'reason': 'Ticket $ticketId was ALREADY USED (Onboarded)!',
         'ticketId': ticketId,
         'userName': userName,
         'ticketRoute': ticketRoute,
@@ -720,8 +742,8 @@ class PilotFirebaseService {
     };
   }
 
-  /// Manually unboards a passenger: resets their ticket status in Firestore back to 'Valid' (isUsed: false).
-  /// This immediately updates the passenger's app to show the ticket as unboarded and ready.
+  /// Manually unboards a passenger: marks their ticket status in Firestore as 'Completed' (isUsed: true, isCompleted: true).
+  /// This updates the student's app, consuming the ticket so it cannot be used further.
   Future<bool> unboardTicket({
     required String ticketId,
   }) async {
@@ -730,11 +752,11 @@ class PilotFirebaseService {
 
     try {
       final updateData = <String, dynamic>{
-        'isUsed': false,
-        'status': 'Valid',
-        'confirmedByDriverId': FieldValue.delete(),
-        'confirmedByDriverName': FieldValue.delete(),
-        'confirmedAt': FieldValue.delete(),
+        'isUsed': true,
+        'status': 'Completed',
+        'tripStatus': 'Completed',
+        'isCompleted': true,
+        'unboardedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -742,7 +764,7 @@ class PilotFirebaseService {
       final docSnap = await ref.doc(ticketId).get();
       if (docSnap.exists) {
         await ref.doc(ticketId).update(updateData);
-        debugPrint('Ticket $ticketId unboarded in Firestore.');
+        debugPrint('Ticket $ticketId marked as Completed in Firestore.');
         return true;
       }
 
@@ -750,14 +772,14 @@ class PilotFirebaseService {
       final query = await ref.where('id', isEqualTo: ticketId).limit(1).get();
       if (query.docs.isNotEmpty) {
         await query.docs.first.reference.update(updateData);
-        debugPrint('Ticket $ticketId unboarded in Firestore by id query.');
+        debugPrint('Ticket $ticketId marked as Completed in Firestore by id query.');
         return true;
       }
 
       final queryUpper = await ref.where('id', isEqualTo: ticketId.toUpperCase()).limit(1).get();
       if (queryUpper.docs.isNotEmpty) {
         await queryUpper.docs.first.reference.update(updateData);
-        debugPrint('Ticket ${ticketId.toUpperCase()} unboarded in Firestore by uppercase id query.');
+        debugPrint('Ticket ${ticketId.toUpperCase()} marked as Completed in Firestore by uppercase id query.');
         return true;
       }
 
@@ -769,7 +791,7 @@ class PilotFirebaseService {
         final target = ticketId.trim().toUpperCase();
         if (dId == target || fId == target) {
           await doc.reference.update(updateData);
-          debugPrint('Ticket $target unboarded via fallback match in doc ${doc.id}.');
+          debugPrint('Ticket $target marked as Completed via fallback match in doc ${doc.id}.');
           return true;
         }
       }
