@@ -2089,12 +2089,15 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
     }
 
     final lastTid = _controller.lastScannedTicketId;
-    final lastTicket = lastTid != null && lastTid.isNotEmpty
-        ? _controller.currentBusTickets.cast<BusTicket?>().firstWhere(
-              (t) => t?.id.toUpperCase() == lastTid.toUpperCase(),
-              orElse: () => null,
-            )
-        : null;
+    BusTicket? lastTicket;
+    if (lastTid != null && lastTid.isNotEmpty) {
+      for (final t in _controller.tickets) {
+        if (t.id.trim().toUpperCase() == lastTid.trim().toUpperCase()) {
+          lastTicket = t;
+          break;
+        }
+      }
+    }
     final showUnboardBtn = lastTicket != null && lastTicket.isBoarded;
 
     return Container(
