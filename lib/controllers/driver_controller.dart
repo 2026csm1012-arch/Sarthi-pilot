@@ -925,6 +925,10 @@ class DriverController extends ChangeNotifier {
           _syncLocationToFirebase();
         }
       },
+      onLocationDisabled: () {
+        debugPrint('Location service disabled detected via native event. Taking vehicle offline.');
+        handleLocationDisabledWhileOnline();
+      },
     );
 
     // 6. Start heartbeat timer
@@ -949,17 +953,43 @@ class DriverController extends ChangeNotifier {
     }
   }
 
+  /// Automatically triggered whenever the device's location service (GPS) is turned OFF
+  /// while the driver is online. Takes vehicle offline immediately and notifies listeners.
+  void handleLocationDisabledWhileOnline() {
+    if (!_isOnline) return;
+
+    debugPrint('Device location turned off. Taking driver offline immediately.');
+    _isOnline = false;
+    _isBroadcasting = false;
+    _hasRealGpsFix = false;
+    _locationService.stopListening();
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _gpsErrorMessage =
+        'Device location was turned off. Vehicle is now offline.';
+    _firebaseService.setVehicleOffline(_selectedCart);
+    notifyListeners();
+  }
+
   /// Alias for duty toggle to maintain backward compatibility.
   Future<bool> toggleLocationBroadcast() {
     return toggleOnlineStatus();
   }
 
   /// Periodic heartbeat timer to keep Firebase 'updatedAt' fresh while online.
-  /// Never executes random waypoint cycling - strictly syncs real GPS coordinates.
+  /// Also continuously verifies that device location service remains ON.
   void _startHeartbeatTimer() {
     _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       if (!_isOnline) return;
+
+      // Continuously verify that the phone's location service is still turned ON
+      final isLocationEnabled = await _locationService.isLocationServiceEnabled();
+      if (!isLocationEnabled) {
+        debugPrint('Location service disabled detected in periodic heartbeat.');
+        handleLocationDisabledWhileOnline();
+        return;
+      }
 
       // Periodically refresh device battery stats
       refreshDeviceBattery();

@@ -28,26 +28,73 @@ class DriverView extends StatefulWidget {
 class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
   late final DriverController _controller;
   final TextEditingController _ticketInputController = TextEditingController();
+  bool _lastOnlineState = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _controller = DriverController(driverUser: widget.driverUser);
+    _controller.addListener(_onDriverStateChanged);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _controller.removeListener(_onDriverStateChanged);
     _controller.dispose();
     _ticketInputController.dispose();
     super.dispose();
   }
 
+  void _onDriverStateChanged() {
+    // If the vehicle was online and transitioned to offline due to location being turned off
+    if (_lastOnlineState && !_controller.isOnline && _controller.gpsErrorMessage != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.location_off_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _controller.gpsErrorMessage!,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            action: SnackBarAction(
+              label: 'Settings',
+              textColor: Colors.white,
+              onPressed: () => _controller.openLocationSettings(),
+            ),
+          ),
+        );
+      }
+    }
+    _lastOnlineState = _controller.isOnline;
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.detached ||
+    if (state == AppLifecycleState.resumed) {
+      // Re-verify location status immediately when driver returns to the app
+      if (_controller.isOnline) {
+        _controller.checkLocationEnabled().then((isEnabled) {
+          if (!isEnabled) {
+            _controller.handleLocationDisabledWhileOnline();
+          }
+        });
+      }
+    } else if (state == AppLifecycleState.detached ||
         state == AppLifecycleState.paused) {
       // Set vehicle offline in Firebase when app closes or minimizes
       _controller.setOfflineImmediate();

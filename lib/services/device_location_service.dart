@@ -136,12 +136,19 @@ class DeviceLocationService {
   /// Starts listening to real-time continuous GPS hardware stream from the phone.
   void startListening({
     required void Function(double lat, double lng, double heading) onUpdate,
+    void Function()? onLocationDisabled,
   }) {
     _subscription?.cancel();
     try {
       _subscription = _eventChannel.receiveBroadcastStream().listen(
         (dynamic data) {
           if (data is Map) {
+            // Check if native Android reported provider/location disabled
+            if (data['event'] == 'location_disabled' ||
+                data['isLocationEnabled'] == false) {
+              onLocationDisabled?.call();
+              return;
+            }
             final lat = (data['latitude'] as num?)?.toDouble();
             final lng = (data['longitude'] as num?)?.toDouble();
             final heading = (data['heading'] as num?)?.toDouble() ?? 0.0;

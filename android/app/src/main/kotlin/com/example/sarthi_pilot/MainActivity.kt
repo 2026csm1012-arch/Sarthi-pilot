@@ -1,7 +1,10 @@
 package com.example.sarthi_pilot
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
@@ -24,11 +27,24 @@ class MainActivity : FlutterActivity(), LocationListener {
     private var eventSink: EventChannel.EventSink? = null
     private var pendingPermissionResult: MethodChannel.Result? = null
     private var lastLocation: Location? = null
+    private var providersReceiver: BroadcastReceiver? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        val filter = IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION)
+        providersReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                notifyLocationStatus()
+            }
+        }
+        try {
+            registerReceiver(providersReceiver, filter)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -194,11 +210,30 @@ class MainActivity : FlutterActivity(), LocationListener {
         }
     }
 
+    private fun notifyLocationStatus() {
+        val lm = locationManager ?: (getSystemService(Context.LOCATION_SERVICE) as? LocationManager)
+        val gps = try { lm?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true } catch (e: Exception) { false }
+        val net = try { lm?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true } catch (e: Exception) { false }
+        val isEnabled = gps || net
+
+        runOnUiThread {
+            eventSink?.success(
+                mapOf(
+                    "event" to if (isEnabled) "location_enabled" else "location_disabled",
+                    "isLocationEnabled" to isEnabled
+                )
+            )
+        }
+    }
+
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
     override fun onProviderEnabled(provider: String) {
+        notifyLocationStatus()
         startLocationListening()
     }
-    override fun onProviderDisabled(provider: String) {}
+    override fun onProviderDisabled(provider: String) {
+        notifyLocationStatus()
+    }
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -218,6 +253,14 @@ class MainActivity : FlutterActivity(), LocationListener {
 
     override fun onDestroy() {
         stopLocationListening()
+        providersReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            providersReceiver = null
+        }
         super.onDestroy()
     }
 }
