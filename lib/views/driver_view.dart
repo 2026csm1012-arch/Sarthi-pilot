@@ -2121,11 +2121,14 @@ class _DriverViewState extends State<DriverView> with WidgetsBindingObserver {
               color: textColor,
             ),
           ),
-          if (showUnboardBtn) ...[
+          if (showUnboardBtn && lastTid != null) ...[
             const SizedBox(height: 8),
             InkWell(
               onTap: () async {
-                await _controller.unboardTicket(lastTid);
+                final tid = lastTid;
+                if (tid != null) {
+                  await _controller.unboardTicket(tid);
+                }
               },
               borderRadius: BorderRadius.circular(8),
               child: Container(

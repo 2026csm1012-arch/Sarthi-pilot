@@ -1301,7 +1301,8 @@ class DriverController extends ChangeNotifier {
 
   /// Verifies a ticket code directly against Firestore database and updates confirmation.
   /// Strict verification: ticket MUST belong to the driver's current bus / route!
-  Future<bool> verifyTicket(String code) async {
+  Future<bool> verifyTicket(String? code) async {
+    if (code == null) return false;
     final cleanCode = _parseTicketCode(code);
     if (cleanCode.isEmpty) {
       _scanResultType = 'error';
@@ -1438,7 +1439,8 @@ class DriverController extends ChangeNotifier {
   /// Manually unboards a passenger: marks ticket status in Firestore as 'Completed' (isUsed: true, isCompleted: true).
   /// This consumes the ticket so it cannot be used further, decrements onboarded passenger count,
   /// and updates available seats across all student apps.
-  Future<bool> unboardTicket(String ticketId) async {
+  Future<bool> unboardTicket(String? ticketId) async {
+    if (ticketId == null) return false;
     final cleanCode = _parseTicketCode(ticketId);
     if (cleanCode.isEmpty) return false;
 
